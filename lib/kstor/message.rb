@@ -13,8 +13,12 @@ module KStor
       @args = args
     end
 
+    def to_h
+      { 'type' => @type, 'args' => @args }
+    end
+
     def serialize
-      { 'type' => @type, 'args' => @args }.to_json
+      to_h.to_json
     end
   end
 
@@ -46,7 +50,7 @@ module KStor
       )
     end
 
-    def serialize
+    def to_h
       super.merge('login' => @login, 'password' => @password)
     end
   end
