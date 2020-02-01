@@ -27,6 +27,9 @@ module KStor
       Log.debug("server: sending #{server_data.bytesize} bytes of response" \
                 ' to client')
       client.send(server_data, 0)
+    rescue Errno::EPIPE
+      Log.info('server: client unexpectedly broke connection')
+    ensure
       client.close
     end
 

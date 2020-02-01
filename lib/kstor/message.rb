@@ -12,6 +12,10 @@ module KStor
       @type = type
       @args = args
     end
+
+    def serialize
+      { 'type' => @type, 'args' => @args }.to_json
+    end
   end
 
   # A user request.
@@ -41,12 +45,13 @@ module KStor
         data['type'], data['args']
       )
     end
+
+    def serialize
+      super.merge('login' => @login, 'password' => @password)
+    end
   end
 
   # Response to a user request.
   class Response < Message
-    def serialize
-      { 'type' => @type, 'args' => @args }.to_json
-    end
   end
 end

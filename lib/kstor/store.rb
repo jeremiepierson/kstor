@@ -19,6 +19,42 @@ module KStor
       @db.transaction(&block)
     end
 
+    def users?
+      rows = @db.execute('SELECT count(*) FROM users')
+      !rows.empty?
+    end
+
+    def user_create(user)
+      @db.execute(<<-EOSQL, user.login, user.name, 'new')
+        INSERT INTO users (login, name, status)
+              VALUE (?, ?, ?, ?)
+      EOSQL
+      user_id = @db.last_insert_row_id
+      user.id = user_id
+      params = [user_id, user.kdf_params, user.pubk, user.encrypted_privk]
+      @db.execute(<<-EOSQL, *params)
+        INSERT INTO users_crypto_data (user_id, kdf_params, pubk, encrypted_privk)
+             VALUES (?, ?, ?, ?)
+      EOSQL
+
+      user
+    end
+
+    def user_update(user)
+      @db.execute(<<-EOSQL, user.name, user.status, user.id)
+        UPDATE users SET name = ?, status = ?
+         WHERE id = ?
+      EOSQL
+      params = [user.kdf_params, user.pubk, user.encrypted_privk, user.id]
+      @db.execute(<<-EOSQL, *params)
+        UPDATE users_crypto_data SET
+               kdf_params = ?,
+               pubk = ?
+               encrypted_params = ?
+         WHERE user_id = ?
+      EOSQL
+    end
+
     def groups
       return @cache[:groups] if @cache.key?(:groups)
 

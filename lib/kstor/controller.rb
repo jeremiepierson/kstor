@@ -28,10 +28,8 @@ module KStor
     end
 
     def handle_request(req)
-      method_name = "handle_#{req.type.tr('.', '_')}".to_sym
-      unless respond_to? method_name
-        raise Error.for_code('REQ/UNKNOWN', req.type)
-      end
+      create_first_user(req) unless @store.users?
+      method_name = method_name_from_request_type(req)
 
       unlock_user(req)
       @store.transaction { __send__(method_name, req) }
@@ -85,6 +83,23 @@ module KStor
       raise Error.for_code('AUTH/FORBIDDEN', login) unless allowed?(@user)
 
       @user.unlock(req.password)
+    end
+
+    def method_name_from_request_type(req)
+      method_name = "handle_#{req.type.tr('.', '_')}".to_sym
+      unless respond_to? method_name
+        raise Error.for_code('REQ/UNKNOWN', req.type)
+      end
+
+      method_name
+    end
+
+    def create_first_user(req)
+      admin = Model::User.new
+      admin.login = req.login
+      admin.name = req.login
+      admin.status = 'new'
+      @store.user_create(admin)
     end
   end
 end

@@ -52,6 +52,12 @@ module KStor
           group_pubk, user_privk, encrypted_privk
         )
       end
+
+      def lock(user_pubk)
+        self.encrypted_privk = Crypto.encrypt_group_privk(
+          user_pubk, privk, privk
+        )
+      end
     end
 
     # A person allowed to connect to the application.
@@ -68,10 +74,35 @@ module KStor
 
       def unlock(password)
         secret_key = Crypto.key_derive(password, kdf_params)
+        reset_password(password) unless crypto?
         self.privk = Crypto.decrypt_user_privk(secret_key, encrypted_privk)
         keychain.each do |it|
           it.unlock(it.pubk, privk)
         end
+      end
+
+      def lock
+        self.encrypted_privk = Crypto.encrypt_user_privk(
+          secret_key, privk
+        )
+        keychain.each { |it| it.lock(pubk) }
+      end
+
+      def reset_password(password, old_password = nil)
+        unless old_password && crypto?
+          keypair = Crypto.generate_key_pair
+          self.privk = keypair.privk
+          self.pubk = keypair.pubk
+        end
+        secret_key = Crypto.key_derive(password)
+        self.kdf_params = secret_key.kdf_params
+        lock
+      end
+
+      private
+
+      def crypto?
+        kdf_params && pubk && encrypted_privk
       end
     end
 

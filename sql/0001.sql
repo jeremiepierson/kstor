@@ -14,13 +14,12 @@ CREATE TABLE users (
 );
 
 CREATE TABLE users_crypto_data (
-	id INTEGER NOT NULL,
 	user_id INTEGER NOT NULL,
 	kdf_params TEXT NOT NULL,
 	pubk TEXT NOT NULL,
 	encrypted_privk TEXT NOT NULL,
 
-	CONSTRAINT users_crypto_data_pk PRIMARY KEY (id),
+	CONSTRAINT users_crypto_data_pk PRIMARY KEY (user_id),
 	CONSTRAINT users_crypto_data_fk FOREIGN KEY (user_id)
 		REFERENCES users (id)
 		ON DELETE RESTRICT
