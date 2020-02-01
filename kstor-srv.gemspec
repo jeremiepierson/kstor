@@ -18,6 +18,6 @@ Gem::Specification.new do |s|
   s.files = Dir['lib/**/*']
   s.files += ['bin/kstor-srv.rb']
   s.bindir = 'bin'
-  s.executables << 'kstor-srv'
+  s.executables << 'kstor-srv.rb'
   s.extra_rdoc_files = ['README']
 end
