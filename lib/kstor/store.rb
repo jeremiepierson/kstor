@@ -112,7 +112,7 @@ module KStor
                   u.status,
                   c.kdf_params,
                   c.pubk,
-                  c.encrypted_privk,
+                  c.encrypted_privk
              FROM users u
         LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
             WHERE u.login = ?
