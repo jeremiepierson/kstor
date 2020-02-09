@@ -2,6 +2,8 @@
 
 require 'kstor/crypto'
 
+require 'json'
+
 module KStor
   module Model
     # Base class for model objects.
@@ -15,6 +17,7 @@ module KStor
             @data[name]
           end
           define_method("#{name}=".to_sym) do |value|
+            Log.debug("model: #{self.class.name}##{name}= #{value.inspect}")
             @data[name] = value
           end
         end
@@ -73,40 +76,85 @@ module KStor
       property :keychain
 
       def unlock(password)
+        Log.debug("model: unlock user #{login}")
+        reset_password(password) unless initialized?
         secret_key = Crypto.key_derive(password, kdf_params)
-        reset_password(password) unless crypto?
         self.privk = Crypto.decrypt_user_privk(secret_key, encrypted_privk)
-        keychain.each do |it|
-          it.unlock(it.pubk, privk)
-        end
+        keychain.values.each { |it| it.unlock(it.group_pubk, privk) }
       end
 
-      def lock
+      def lock(password)
+        Log.debug("model: lock user data for #{login}")
+        secret_key = Crypto.key_derive(password, kdf_params)
         self.encrypted_privk = Crypto.encrypt_user_privk(
           secret_key, privk
         )
-        keychain.each { |it| it.lock(pubk) }
+        keychain.values.each { |it| it.lock(pubk) }
       end
 
       def reset_password(password, old_password = nil)
-        unless old_password && crypto?
-          keypair = Crypto.generate_key_pair
-          self.privk = keypair.privk
-          self.pubk = keypair.pubk
-        end
+        Log.info("model: resetting password for user #{login}")
+        reset_key_pair unless old_password && initialized?
         secret_key = Crypto.key_derive(password)
         self.kdf_params = secret_key.kdf_params
-        lock
+        lock(password)
       end
 
       private
 
-      def crypto?
+      def initialized?
+        Log.debug("model: user data = #{@data.inspect}")
         kdf_params && pubk && encrypted_privk
+      end
+
+      def reset_key_pair
+        Log.info("model: generating new key pair for user #{login}")
+        keypair = Crypto.generate_key_pair
+        self.privk = keypair.privk
+        self.pubk = keypair.pubk
       end
     end
 
-    # A secret, with metadata and a value that is kepts encrypted on disk.
+    # Metadata for a secret.
+    class SecretMeta
+      attr_accessor :app
+      attr_accessor :db
+      attr_accessor :login
+      attr_accessor :server
+      attr_accessor :url
+
+      def initialize(**values)
+        @app = values['app']
+        @db = values['db']
+        @login = values['login']
+        @server = values['server']
+        @url = values['url']
+      end
+
+      def to_h
+        { 'app' => @app, 'db' => @db, 'login' => @login,
+          'server' => @server, 'url' => @url }
+      end
+
+      def serialize
+        to_h.to_json
+      end
+
+      def self.load(json)
+        new(JSON.parse(json))
+      end
+
+      def match?(meta)
+        to_h.values.zip(meta.to_h.values).all? do |val, wildcard|
+          (val.nil? && wildcard.nil?) ||
+            File.fnmatch?(
+              wildcard, val, File::FNM_CASEFOLD | File::FNM_DOTMATCH
+            )
+        end
+      end
+    end
+
+    # A secret, with metadata and a value that are kept encrypted on disk.
     class Secret < Base
       property :id
       property :value_author_id
@@ -114,7 +162,12 @@ module KStor
       property :group_id
       property :ciphertext
       property :encrypted_metadata
-      property :metadata
+
+      attr_reader :metadata
+
+      def metadata=(json)
+        @metadata = SecretMeta.load(json)
+      end
 
       def unlock(author_pubk, group_privk)
         Crypto.decrypt_secret_value(author_pubk, group_privk, @ciphertext)

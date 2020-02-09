@@ -30,6 +30,7 @@ module KStor
     end
 
     def self.inherited(subclass)
+      Log.debug("error: #{subclass} inherits from Error")
       @registry ||= ErrorRegistry.new
       if @registry.key?(subclass.code)
         code = subclass.code

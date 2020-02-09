@@ -22,6 +22,8 @@ module KStor
     #   - secret metadata
     #   - secret metadata and value authors
     def secret_search(meta)
+      return [] if @user.keychain.empty?
+
       @store.secrets_for_user(@user.id).select do |secret|
         group_privk = @user.keychain[secret.group_id]
         author = users[secret.meta_author_id]

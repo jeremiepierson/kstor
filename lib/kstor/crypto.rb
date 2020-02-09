@@ -6,43 +6,26 @@ require 'base64'
 
 require 'kstor/error'
 require 'kstor/crypto/ascii_armor'
+require 'kstor/crypto/keys'
 
 module KStor
+  # Generic crypto error.
+  class CryptoError < Error
+    error_code 'CRYPTO/UNSPECIFIED'
+    error_message 'Cryptographic error.'
+  end
+
+  # Error in key derivation.
+  class RbNaClError < Error
+    error_code 'CRYPTO/RBNACL'
+    error_message 'RbNaCl error: %s'
+  end
+
   # Cryptographic functions for KStor.
   #
   # @version 1.0
   module Crypto
     VERSION = 1
-
-    # Generic crypto error.
-    class Error < KStor::Error
-      error_code 'CRYPTO/UNSPECIFIED'
-      error_message 'Cryptographic error.'
-    end
-
-    # Holds together a secret key value and the KDF associated parameters.
-    class SecretKey
-      # The secret key as a raw String
-      attr_reader :value
-      # KDF parameters as an ASCII-armored String
-      attr_reader :kdf_params
-
-      def initialize(value, kdf_params)
-        @value = value
-        @kdf_params = kdf_params
-      end
-    end
-
-    # Holds together a public and private key pair.
-    class KeyPair
-      attr_reader :pubk
-      attr_reader :privk
-
-      def initialize(pubk, privk)
-        @pubk = pubk
-        @privk = privk
-      end
-    end
 
     class << self
       # Derive a secret key suitable for symetric encryption from a passphrase.
@@ -57,13 +40,14 @@ module KStor
       #   string
       def key_derive(passphrase, params_str = nil)
         params = key_derive_params_unserialize(params_str)
+        Log.debug("crypto: kdf params = #{params.inspect}")
         data = RbNaCl::PasswordHash.argon2(
           passphrase, params['salt'],
           params['opslimit'], params['memlimit'], params['digest_size']
         )
-        SecretKey.new(data, key_derive_params_serialize(params))
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+        SecretKey.new(b2a(data), key_derive_params_serialize(params))
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       # Check if KDF params match current code in this library.
@@ -78,14 +62,14 @@ module KStor
         return true if params_str.nil?
 
         key_derive_params_unserialize(params_str)['_version'] != VERSION
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       def generate_key_pair
         privk = RbNaCl::PrivateKey.generate
         pubk = privk.public_key
-        KeyPair.new(b2a(pubk.ot_bytes), b2a(privk.to_bytes))
+        KeyPair.new(b2a(pubk.to_bytes), b2a(privk.to_bytes))
       end
 
       def encrypt_user_privk(secret_key, privk)
@@ -93,7 +77,7 @@ module KStor
       end
 
       def decrypt_user_privk(secret_key, privk)
-        privk2a(box_secret_decrypt(secret_key, privk))
+        privk2a(RbNaCl::PrivateKey.new(box_secret_decrypt(secret_key, privk)))
       end
 
       def encrypt_group_privk(user_pubk, group_privk)
@@ -130,9 +114,10 @@ module KStor
       # @param bytes [String] raw data to encrypt
       # @return [String] ASCII-armored ciphertext
       def box_secret_encrypt(secret_key, bytes)
-        b2a(make_secret_box(secret_key).encrypt(bytes))
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+        ciphertext = make_secret_box(secret_key).encrypt(bytes)
+        b2a(ciphertext)
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       # Decrypt data with a secret key.
@@ -142,8 +127,8 @@ module KStor
       # @return [String] raw decrypted plaintext
       def box_secret_decrypt(secret_key, str)
         make_secret_box(secret_key).decrypt(a2b(str))
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       # Encrypt and authenticate data with public-key crypto.
@@ -153,9 +138,9 @@ module KStor
       # @param bytes [String] raw data to encrypt
       # @return [String] ASCII-armored ciphertext
       def box_pair_encrypt(pubk, privk, bytes)
-        b2a(make_pair_box(pubk, privk).decrypt(bytes))
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+        b2a(make_pair_box(pubk, privk).encrypt(bytes))
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       # Decrypt and authentify data with public-key crypto.
@@ -166,8 +151,8 @@ module KStor
       # @return [String] raw decrypted plaintext
       def box_pair_decrypt(pubk, privk, str)
         make_pair_box(pubk, privk).decrypt(a2b(str))
-      rescue RbNaCl::CryptoError
-        raise Error.for_code('CRYPTO/UNSPECIFIED')
+      rescue RbNaCl::CryptoError => e
+        raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
 
       # Make a SimpleBox for symetric crypto.
@@ -175,7 +160,7 @@ module KStor
       # @param secret_key [String] ASCII-armored secret key
       # @return [RbNaCl::SimpleBox] the box
       def make_secret_box(secret_key)
-        RbNaCl::SimpleBox.from_secret_key(a2b(secret_key))
+        RbNaCl::SimpleBox.from_secret_key(a2b(secret_key.value))
       end
 
       # Make a SimpleBox for asymetric cypto.
@@ -197,6 +182,8 @@ module KStor
 
         h = JSON.parse(str)
         h['salt'] = a2b(h['salt'])
+        h['opslimit'] = h['opslimit'].to_sym
+        h['memlimit'] = h['memlimit'].to_sym
         h
       end
 

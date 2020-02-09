@@ -5,6 +5,7 @@ require 'kstor/log'
 require 'kstor/store'
 require 'kstor/message'
 require 'kstor/controller/secret'
+require 'kstor/controller/users'
 
 module KStor
   # Error: user was not allowed to access application.
@@ -19,8 +20,15 @@ module KStor
     error_message 'Unknown request type %s'
   end
 
+  # Error: missing request argument.
+  class MissingArgument < Error
+    error_code 'REQ/MISSINGARG'
+    error_message 'Missing argument %s for request type %s'
+  end
+
   # Request handler.
   class Controller
+    include UserController
     include SecretController
 
     def initialize(store)
@@ -28,18 +36,32 @@ module KStor
     end
 
     def handle_request(req)
-      create_first_user(req) unless @store.users?
       method_name = method_name_from_request_type(req)
-
-      unlock_user(req)
+      @store.users? ? unlock_user(req) : create_first_user(req)
       @store.transaction { __send__(method_name, req) }
+    rescue RbNaClError => e
+      Log.exception(e)
+      Error.for_code('CRYPTO/UNSPECIFIED').response
     rescue Error => e
       Log.info(e.message)
       e.response
     end
 
+    def handle_group_create(req)
+      unless req.args['name']
+        raise Error.for_code('REQ/MISSINGARG', 'name', req.type)
+      end
+
+      group = group_create(req.args['name'])
+      Response.new(
+        'group.created',
+        'group_id' => group.id,
+        'group_name' => group.name
+      )
+    end
+
     def handle_secret_search(req)
-      secrets = secret_search(SecretMeta.new(req.args))
+      secrets = secret_search(Model::SecretMeta.new(**req.args))
       Response.new(
         'secret.list',
         'secrets' => secrets
@@ -52,15 +74,16 @@ module KStor
     end
 
     def handle_secret_create(req)
-      meta = SecretMeta.new(req.args['meta'])
+      meta = Model::SecretMeta.new(**req.args['meta'])
+      secret_groups = req.args['group_ids'].map { |gid| groups[gid] }
       secret_id = secret_create(
-        req.args['plaintext'], req.args['group_id'], meta
+        req.args['plaintext'], secret_groups, meta
       )
       Response.new('secret.created', 'secret_id' => secret_id)
     end
 
     def handle_secret_updatemeta(req)
-      meta = SecretMeta.new(req.args['meta'])
+      meta = Model::SecretMeta.new(req.args['meta'])
       secret_update_meta(req.args['secret_id'], meta)
       Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
     end
@@ -74,13 +97,16 @@ module KStor
 
     # return true if login is allowed to access the database.
     def allowed?(user)
-      user.status == :new || user.status == :active
+      user.status == 'new' || user.status == 'active'
     end
 
     def unlock_user(req)
       Log.debug("unlocking user #{req.login.inspect}")
       @user = @store.user_by_login(req.login)
-      raise Error.for_code('AUTH/FORBIDDEN', login) unless allowed?(@user)
+      Log.debug("loaded user #{@user.inspect}")
+      unless @user && allowed?(@user)
+        raise Error.for_code('AUTH/FORBIDDEN', req.login)
+      end
 
       @user.unlock(req.password)
     end
@@ -95,11 +121,16 @@ module KStor
     end
 
     def create_first_user(req)
-      admin = Model::User.new
-      admin.login = req.login
-      admin.name = req.login
-      admin.status = 'new'
-      @store.user_create(admin)
+      Log.info("no user in database, creating #{req.login.inspect}")
+      @user = Model::User.new(
+        login: req.login,
+        name: req.login,
+        status: 'new',
+        keychain: {}
+      )
+      @user.unlock(req.password)
+      @store.user_create(@user)
+      Log.info("user #{@user.login} created")
     end
   end
 end

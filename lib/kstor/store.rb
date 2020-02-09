@@ -20,22 +20,28 @@ module KStor
     end
 
     def users?
-      rows = @db.execute('SELECT count(*) FROM users')
-      !rows.empty?
+      rows = @db.execute('SELECT count(*) AS n FROM users')
+      count = Integer(rows.first['n'])
+      Log.debug("store: count of users is #{count}")
+
+      count.positive?
     end
 
     def user_create(user)
       @db.execute(<<-EOSQL, user.login, user.name, 'new')
         INSERT INTO users (login, name, status)
-              VALUE (?, ?, ?, ?)
+             VALUES (?, ?, ?)
       EOSQL
-      user_id = @db.last_insert_row_id
-      user.id = user_id
-      params = [user_id, user.kdf_params, user.pubk, user.encrypted_privk]
+      user.id = @db.last_insert_row_id
+      Log.debug("store: stored new user #{user.login}")
+      params = [user.id, user.kdf_params, user.pubk, user.encrypted_privk]
+      return user if params.any?(&:nil?)
+
       @db.execute(<<-EOSQL, *params)
         INSERT INTO users_crypto_data (user_id, kdf_params, pubk, encrypted_privk)
              VALUES (?, ?, ?, ?)
       EOSQL
+      Log.debug("store: stored user crypto data for #{user.login}")
 
       user
     end
@@ -53,6 +59,21 @@ module KStor
                encrypted_params = ?
          WHERE user_id = ?
       EOSQL
+    end
+
+    def keychain_item_create(user_id, group_id, encrypted_privk)
+      @db.execute(<<-EOSQL, user_id, group_id, encrypted_privk)
+        INSERT INTO group_members (user_id, group_id, encrypted_privk)
+             VALUES (?, ?, ?)
+      EOSQL
+    end
+
+    def group_create(name, pubk)
+      @db.execute(<<-EOSQL, name, pubk)
+        INSERT INTO groups (name, pubk)
+             VALUES (?, ?)
+      EOSQL
+      @db.last_insert_row_id
     end
 
     def groups
@@ -117,7 +138,7 @@ module KStor
         LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
             WHERE u.login = ?
       EOSQL
-      user_from_resultset(rows)
+      user_from_resultset(rows, include_crypto_data: true)
     end
 
     # in: user ID
@@ -142,7 +163,7 @@ module KStor
         LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
             WHERE u.id = ?
       EOSQL
-      user_from_resultset(rows)
+      user_from_resultset(rows, include_crypto_data: true)
     end
 
     # in: user ID
@@ -297,7 +318,6 @@ module KStor
       return nil if rows.empty?
 
       row = rows.shift
-
       user_data = {
         id: row['id'],
         login: row['login'],
@@ -306,7 +326,7 @@ module KStor
         pubk: row['pubk']
       }
       if include_crypto_data
-        user_data.merge(
+        user_data.merge!(
           kdf_params: row['kdf_params'],
           encrypted_privk: row['encrypted_privk'],
           keychain: keychain_fetch(row['id'])

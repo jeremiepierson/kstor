@@ -20,13 +20,14 @@ module KStor
 
     def start
       start_workers
-      server = Systemd.socket || UNIXServer.new(@path)
+      server = Systemd.socket
       Systemd.service_ready
-      loop { @client_queue.enq(server.accept.first) }
+      loop do
+        maintain_workers
+        @client_queue.enq(server.accept.first)
+      end
     rescue Interrupt
-      Log.debug('socket_server: stopping.')
       stop(server)
-      File.unlink(@path) if File.file?(@path)
       Log.info('socket_server: stopped.')
     end
 
@@ -47,7 +48,7 @@ module KStor
 
     def stop(server)
       Systemd.service_stopping
-      Log.debug('socket_server: stopping UNIXServer')
+      Log.debug('socket_server: closing UNIXServer')
       server.close
       Log.debug('socket_server: closing client queue')
       @client_queue.close
@@ -66,11 +67,47 @@ module KStor
 
     def start_workers
       @nworkers.times do |i|
-        name = "worker-#{i}"
-        @workers << Thread.new { worker_run }
-        @workers.last.name = name
-        Log.debug("socket_server: started #{name}")
+        @workers << start_worker("worker-#{i}")
+        Log.debug("socket_server: started #{@workers.last.name}")
       end
     end
+
+    def start_worker(name)
+      thr = Thread.new { worker_run }
+      thr.name = name
+
+      thr
+    end
+
+    def maintain_workers
+      collect_dead_workers.each do |i, w|
+        name = w.name
+        Log.error("socket_server: #{name} died!")
+        rescue_worker_exception(w)
+        Log.info("socket_server: performing resurrection on #{name}")
+        @workers[i] = start_worker(name)
+        Log.debug("socket_server: welcome back, comrade #{name}")
+      end
+    end
+
+    def collect_dead_workers
+      deads = {}
+      @workers.each_with_index do |w, i|
+        next if %w[sleep run].include?(w.status)
+
+        Log.debug("socket_server: #{w.name} status is #{w.status.inspect}")
+        deads[i] = w
+      end
+
+      deads
+    end
+
+    # rubocop:disable Lint/RescueException
+    def rescue_worker_exception(worker)
+      worker.join
+    rescue Exception => e
+      Log.exception(e)
+    end
+    # rubocop:enable Lint/RescueException
   end
 end

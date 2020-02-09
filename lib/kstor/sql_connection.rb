@@ -27,7 +27,12 @@ module KStor
     end
 
     def transaction(&block)
-      database.transaction(&block)
+      result = nil
+      database.transaction do |db|
+        result = block.call(db)
+      end
+
+      result
     end
 
     private
