@@ -103,7 +103,7 @@ module KStor
     def unlock_user(req)
       Log.debug("unlocking user #{req.login.inspect}")
       @user = @store.user_by_login(req.login)
-      Log.debug("loaded user #{@user.inspect}")
+      Log.debug("loaded user ##{@user.id} #{@user.login}")
       unless @user && allowed?(@user)
         raise Error.for_code('AUTH/FORBIDDEN', req.login)
       end

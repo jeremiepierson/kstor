@@ -17,7 +17,6 @@ module KStor
             @data[name]
           end
           define_method("#{name}=".to_sym) do |value|
-            Log.debug("model: #{self.class.name}##{name}= #{value.inspect}")
             @data[name] = value
           end
         end
@@ -103,7 +102,6 @@ module KStor
       private
 
       def initialized?
-        Log.debug("model: user data = #{@data.inspect}")
         kdf_params && pubk && encrypted_privk
       end
 
