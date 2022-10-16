@@ -24,9 +24,10 @@ Gem::Specification.new do |s|
   s.files += ['bin/kstor-srv.rb']
   s.bindir = 'bin'
   s.executables << 'kstor-srv.rb'
-  s.extra_rdoc_files = ['README']
+  s.extra_rdoc_files = ['README.md']
 
   s.add_runtime_dependency 'journald-logger', '~> 3.1'
-  s.add_dependency 'sd_notify', '~> 0.1'
-  s.add_dependency 'sqlite3', '~> 1.5'
+  s.add_runtime_dependency 'rbnacl', '~> 7.1'
+  s.add_runtime_dependency 'sd_notify', '~> 0.1'
+  s.add_runtime_dependency 'sqlite3', '~> 1.5'
 end
