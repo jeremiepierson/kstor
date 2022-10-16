@@ -1,0 +1,7 @@
+AllCops:
+  TargetRubyVersion: 3.0
+  NewCops: enable
+Style/AccessorGrouping:
+  EnforcedStyle: separated
+Layout/LineLength:
+  Max: 80
