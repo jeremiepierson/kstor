@@ -42,7 +42,7 @@ module KStor
       resp.serialize
     rescue JSON::ParserError => e
       err = Error.for_code('MSG/INVALID', e.message)
-      Log.info('server: ' + err.to_s)
+      Log.info("server: #{err}")
       err.response.serialize
     end
   end

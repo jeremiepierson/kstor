@@ -25,7 +25,7 @@ module KStor
       return [] if @user.keychain.empty?
 
       @store.secrets_for_user(@user.id).select do |secret|
-        group_privk = @user.keychain[secret.group_id]
+        group_privk = @user.keychain[secret.group_id].privk
         author = users[secret.meta_author_id]
         secret.unlock_metadata(author.pubk, group_privk)
         secret.metadata.match?(meta)

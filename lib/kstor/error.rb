@@ -30,6 +30,7 @@ module KStor
     end
 
     def self.inherited(subclass)
+      super
       Log.debug("error: #{subclass} inherits from Error")
       @registry ||= ErrorRegistry.new
       if @registry.key?(subclass.code)
@@ -78,7 +79,7 @@ module KStor
     private
 
     def index
-      @index ||= @error_classes.map { |c| [c.code, c] }.to_h
+      @index ||= @error_classes.to_h { |c| [c.code, c] }
     end
   end
 end

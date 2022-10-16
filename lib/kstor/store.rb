@@ -87,12 +87,14 @@ module KStor
             FROM groups
         ORDER BY name
       EOSQL
-      @cache[:groups] = rows.map do |r|
-        [
-          r['id'],
-          Model::Group.new(id: r['id'], name: r['name'], pubk: r['pubk'])
-        ]
-      end.to_h
+      @cache[:groups] = rows.to_h do |r|
+        a = []
+        a << r['id']
+        a << Model::Group.new(
+          id: r['id'], name: r['name'], pubk: Crypto::PublicKey.new(r['pubk'])
+        )
+        a
+      end
     end
 
     def users
@@ -311,7 +313,7 @@ module KStor
         users << u
       end
 
-      users.map { |uu| [uu.id, uu] }.to_h
+      users.to_h { |uu| [uu.id, uu] }
     end
 
     def user_from_resultset(rows, include_crypto_data: true)
@@ -323,16 +325,18 @@ module KStor
         login: row['login'],
         name: row['name'],
         status: row['status'],
-        pubk: row['pubk']
+        pubk: Crypto::PublicKey.new(row['pubk'])
       }
-      if include_crypto_data
-        user_data.merge!(
-          kdf_params: row['kdf_params'],
-          encrypted_privk: row['encrypted_privk'],
-          keychain: keychain_fetch(row['id'])
-        )
-      end
+      include_crypto_data && user_crypto_data_from_resultset(user_data, row)
       Model::User.new(**user_data)
+    end
+
+    def user_crypto_data_from_resultset(user_data, row)
+      user_data.merge!(
+        kdf_params: Crypto::KDFParams.new(row['kdf_params']),
+        encrypted_privk: Crypto::ArmoredValue.new(row['encrypted_privk']),
+        keychain: keychain_fetch(row['id'])
+      )
     end
 
     # in: user ID
@@ -350,16 +354,16 @@ module KStor
               AND gm.group_id = g.id
          ORDER BY g.name
       EOSQL
-      rows.map do |r|
+      rows.to_h do |r|
         [
           r['id'],
           Model::KeychainItem.new(
             group_id: r['id'],
-            group_pubk: r['pubk'],
-            encrypted_privk: r['encrypted_privk']
+            group_pubk: Crypto::PublicKey.new(r['pubk']),
+            encrypted_privk: Crypto::ArmoredValue.new(r['encrypted_privk'])
           )
         ]
-      end.to_h
+      end
     end
 
     def secret_from_row(row)
@@ -368,8 +372,8 @@ module KStor
         value_author_id: row['value_author_id'],
         meta_author_id: row['meta_author_id'],
         group_id: row['group_id'],
-        ciphertext: row['ciphertext'],
-        encrypted_metadata: row['encrypted_metadata']
+        ciphertext: Crypto::ArmoredValue.new(row['ciphertext']),
+        encrypted_metadata: Crypto::ArmoredValue.new(row['encrypted_metadata'])
       )
     end
   end

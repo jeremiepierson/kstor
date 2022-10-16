@@ -10,15 +10,17 @@ module KStor
     class Base
       class << self
         attr_reader :properties
+
         def property(name)
           @properties ||= []
           @properties << name
-          define_method(name) do
-            @data[name]
-          end
+          define_method(name) { @data[name] }
           define_method("#{name}=".to_sym) do |value|
             @data[name] = value
+            @dirty = true
           end
+          define_method(:dirty?) { @dirty }
+          define_method(:clean) { @dirty = false }
         end
 
         def property?(name)
@@ -79,7 +81,7 @@ module KStor
         reset_password(password) unless initialized?
         secret_key = Crypto.key_derive(password, kdf_params)
         self.privk = Crypto.decrypt_user_privk(secret_key, encrypted_privk)
-        keychain.values.each { |it| it.unlock(it.group_pubk, privk) }
+        keychain.each_value { |it| it.unlock(it.group_pubk, privk) }
       end
 
       def lock(password)
@@ -88,7 +90,7 @@ module KStor
         self.encrypted_privk = Crypto.encrypt_user_privk(
           secret_key, privk
         )
-        keychain.values.each { |it| it.lock(pubk) }
+        keychain.each_value { |it| it.lock(pubk) }
       end
 
       def reset_password(password, old_password = nil)
@@ -99,6 +101,12 @@ module KStor
         lock(password)
       end
 
+      def change_password(password, new_password)
+        Log.info("model: changing password for user #{login}")
+        unlock(password)
+        lock(new_password)
+      end
+
       private
 
       def initialized?
@@ -107,9 +115,7 @@ module KStor
 
       def reset_key_pair
         Log.info("model: generating new key pair for user #{login}")
-        keypair = Crypto.generate_key_pair
-        self.privk = keypair.privk
-        self.pubk = keypair.pubk
+        self.pubk, self.privk = Crypto.generate_key_pair
       end
     end
 
@@ -135,11 +141,11 @@ module KStor
       end
 
       def serialize
-        to_h.to_json
+        Crypto::ArmoredHash.from_hash(to_h)
       end
 
-      def self.load(json)
-        new(JSON.parse(json))
+      def self.load(armored_hash)
+        new(armored_hash.to_hash)
       end
 
       def match?(meta)
@@ -163,17 +169,19 @@ module KStor
 
       attr_reader :metadata
 
-      def metadata=(json)
-        @metadata = SecretMeta.load(json)
+      # FIXME! use Crypto::ArmoredHash
+      def metadata=(armored_hash)
+        @metadata = SecretMeta.load(armored_hash)
       end
 
       def unlock(author_pubk, group_privk)
-        Crypto.decrypt_secret_value(author_pubk, group_privk, @ciphertext)
+        Crypto.decrypt_secret_value(author_pubk, group_privk, ciphertext)
       end
 
       def unlock_metadata(author_pubk, group_privk)
+        Log.debug("model: secret data = #{@data.inspect}")
         self.metadata = Crypto.decrypt_secret_metadata(
-          author_pubk, group_privk, @encrypted_metadata
+          author_pubk.to_str, group_privk.to_str, encrypted_metadata.to_str
         )
       end
     end
