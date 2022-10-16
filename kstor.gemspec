@@ -21,7 +21,8 @@ Gem::Specification.new do |s|
   s.email = 'jeremie.pierson@arlol.net'
   s.license = 'GPL-3.0-or-later'
   s.files = Dir['lib/**/*']
-  s.files += ['bin/kstor-srv.rb']
+  s.files += ['bin/kstor-srv']
+  s.files += ['bin/kstor']
   s.bindir = 'bin'
   s.executables << 'kstor-srv'
   s.executables << 'kstor'
