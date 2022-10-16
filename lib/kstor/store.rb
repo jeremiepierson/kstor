@@ -15,8 +15,8 @@ module KStor
       @cache = {}
     end
 
-    def transaction(&block)
-      @db.transaction(&block)
+    def transaction(&)
+      @db.transaction(&)
     end
 
     def users?

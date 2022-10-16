@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), 'lib'))
 require 'kstor/version'
 
 Gem::Specification.new do |s|
-  s.required_ruby_version = '>= 3.0.0'
+  s.required_ruby_version = '>= 3.1.0'
   s.metadata = {
     'rubygems_mfa_required' => 'true'
   }

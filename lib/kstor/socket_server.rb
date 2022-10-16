@@ -52,8 +52,8 @@ module KStor
       server.close
       Log.debug('socket_server: closing client queue')
       @client_queue.close
-      Log.debug("socket_server: waiting #{GRACEFUL_TIMEOUT} seconds" \
-                ' for workers to finish')
+      Log.debug("socket_server: waiting #{GRACEFUL_TIMEOUT} seconds " \
+                'for workers to finish')
       Timeout.timeout(GRACEFUL_TIMEOUT) { @workers.each(&:join) }
     rescue Timeout::Error
       immediate_stop(server)

@@ -24,8 +24,8 @@ module KStor
       client_data, = client.recvfrom(4096)
       Log.debug("server: read #{client_data.bytesize} bytes from client")
       server_data = handle_client_data(client_data)
-      Log.debug("server: sending #{server_data.bytesize} bytes of response" \
-                ' to client')
+      Log.debug("server: sending #{server_data.bytesize} bytes of response " \
+                'to client')
       client.send(server_data, 0)
     rescue Errno::EPIPE
       Log.info('server: client unexpectedly broke connection')

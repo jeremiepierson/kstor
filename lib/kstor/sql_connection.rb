@@ -18,8 +18,8 @@ module KStor
       @file_path = file_path
     end
 
-    def execute(sql, *params, &block)
-      database.execute(sql, *params, &block)
+    def execute(sql, *params, &)
+      database.execute(sql, *params, &)
     end
 
     def last_insert_row_id

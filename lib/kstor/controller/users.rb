@@ -17,16 +17,16 @@ module KStor
       Log.debug("encrypted_privk = #{encrypted_privk}")
       keychain_item_create(group_id, pubk, encrypted_privk)
 
-      Model::Group.new(id: group_id, name: name, pubk: pubk)
+      Model::Group.new(id: group_id, name:, pubk:)
     end
 
     private
 
     def keychain_item_create(group_id, pubk, encrypted_privk)
       item = Model::KeychainItem.new(
-        group_id: group_id,
+        group_id:,
         group_pubk: pubk,
-        encrypted_privk: encrypted_privk
+        encrypted_privk:
       )
       @user.keychain[item.group_id] = item
       @store.keychain_item_create(@user.id, group_id, encrypted_privk)
