@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
     'rubygems_mfa_required' => 'true'
   }
 
-  s.name = 'kstor-srv'
+  s.name = 'kstor'
   s.version = KStor::VERSION
   s.summary = 'KStor secret server'
   s.description = <<-EODESCR
