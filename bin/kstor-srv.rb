@@ -19,4 +19,7 @@ server = KStor::Server.new(
   socket_path: config['socket'],
   nworkers: config['nworkers']
 )
+
+Process.setproctitle('kstor')
+
 server.start
