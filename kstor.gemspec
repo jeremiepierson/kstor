@@ -23,8 +23,8 @@ Gem::Specification.new do |s|
   s.files = Dir['lib/**/*']
   s.files += ['bin/kstor-srv.rb']
   s.bindir = 'bin'
-  s.executables << 'kstor-srv.rb'
-  s.executables << 'kstor.rb'
+  s.executables << 'kstor-srv'
+  s.executables << 'kstor'
   s.extra_rdoc_files = ['README.md']
 
   s.add_runtime_dependency 'journald-logger', '~> 3.1'
