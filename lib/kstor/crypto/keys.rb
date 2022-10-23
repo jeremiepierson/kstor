@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'kstor/crypto/ascii_armor'
+
 module KStor
   module Crypto
     # Holds together a secret key value and the KDF associated parameters.
@@ -49,18 +51,18 @@ module KStor
       alias to_s to_ascii
 
       def to_binary
-        a2b(@value)
+        ASCIIArmor.decode(@value)
       end
 
       def self.from_binary(bin_str)
-        new(b2a(bin_str.to_str))
+        new(ASCIIArmor.encode(bin_str.to_str))
       end
     end
 
     # A Hash.
     class ArmoredHash < ArmoredValue
       def self.from_hash(hash)
-        from_binary(hash.to_json)
+        from_binary(ASCIIArmor.encode(hash.to_json))
       end
 
       def to_hash
@@ -74,14 +76,14 @@ module KStor
       def []=(key, val)
         h = to_hash
         h[key] = val
-        @value = b2a(h.to_json)
+        @value = ASCIIArmor.encode(h.to_json)
       end
     end
 
     # KDF parameters.
     class KDFParams < ArmoredHash
       def self.from_hash(hash)
-        hash['salt'] = b2a(hash['salt'])
+        hash['salt'] = ASCIIArmor.encode(hash['salt'])
         hash['opslimit'] = h['opslimit'].to_s
         hash['memlimit'] = h['memlimit'].to_s
         super(hash)
@@ -89,7 +91,7 @@ module KStor
 
       def to_hash
         hash = super
-        hash['salt'] = a2b(hash['salt'])
+        hash['salt'] = ASCIIArmor.decode(hash['salt'])
         hash['opslimit'] = hash['opslimit'].to_sym
         hash['memlimit'] = hash['memlimit'].to_sym
 
