@@ -55,14 +55,14 @@ module KStor
       end
 
       def self.from_binary(bin_str)
-        new(ASCIIArmor.encode(bin_str.to_str))
+        new(ASCIIArmor.encode(bin_str))
       end
     end
 
     # A Hash.
     class ArmoredHash < ArmoredValue
       def self.from_hash(hash)
-        from_binary(ASCIIArmor.encode(hash.to_json))
+        from_binary(hash.to_json)
       end
 
       def to_hash
@@ -84,8 +84,8 @@ module KStor
     class KDFParams < ArmoredHash
       def self.from_hash(hash)
         hash['salt'] = ASCIIArmor.encode(hash['salt'])
-        hash['opslimit'] = h['opslimit'].to_s
-        hash['memlimit'] = h['memlimit'].to_s
+        hash['opslimit'] = hash['opslimit'].to_s
+        hash['memlimit'] = hash['memlimit'].to_s
         super(hash)
       end
 

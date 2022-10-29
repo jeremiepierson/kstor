@@ -145,12 +145,12 @@ module KStor
       end
 
       def self.load(armored_hash)
-        new(armored_hash.to_hash)
+        new(**armored_hash.to_hash)
       end
 
       def match?(meta)
         to_h.values.zip(meta.to_h.values).all? do |val, wildcard|
-          (val.nil? && wildcard.nil?) ||
+          (val.nil? || wildcard.nil?) ||
             File.fnmatch?(
               wildcard, val, File::FNM_CASEFOLD | File::FNM_DOTMATCH
             )
@@ -181,7 +181,7 @@ module KStor
       def unlock_metadata(author_pubk, group_privk)
         Log.debug("model: secret data = #{@data.inspect}")
         self.metadata = Crypto.decrypt_secret_metadata(
-          author_pubk.to_str, group_privk.to_str, encrypted_metadata.to_str
+          author_pubk, group_privk, encrypted_metadata
         )
       end
     end

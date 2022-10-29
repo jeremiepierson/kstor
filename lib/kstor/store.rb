@@ -34,10 +34,10 @@ module KStor
       EOSQL
       user.id = @db.last_insert_row_id
       Log.debug("store: stored new user #{user.login}")
-      params = [user.id, user.kdf_params, user.pubk, user.encrypted_privk]
+      params = [user.kdf_params, user.pubk, user.encrypted_privk].map(&:to_s)
       return user if params.any?(&:nil?)
 
-      @db.execute(<<-EOSQL, *params)
+      @db.execute(<<-EOSQL, user.id, *params)
         INSERT INTO users_crypto_data (user_id, kdf_params, pubk, encrypted_privk)
              VALUES (?, ?, ?, ?)
       EOSQL
@@ -62,14 +62,14 @@ module KStor
     end
 
     def keychain_item_create(user_id, group_id, encrypted_privk)
-      @db.execute(<<-EOSQL, user_id, group_id, encrypted_privk)
+      @db.execute(<<-EOSQL, user_id, group_id, encrypted_privk.to_s)
         INSERT INTO group_members (user_id, group_id, encrypted_privk)
              VALUES (?, ?, ?)
       EOSQL
     end
 
     def group_create(name, pubk)
-      @db.execute(<<-EOSQL, name, pubk)
+      @db.execute(<<-EOSQL, name, pubk.to_s)
         INSERT INTO groups (name, pubk)
              VALUES (?, ?)
       EOSQL
@@ -207,6 +207,7 @@ module KStor
                   s.value_author_id,
                   s.meta_author_id,
                   sv.group_id,
+                  sv.ciphertext,
                   sv.encrypted_metadata
              FROM secrets s,
                   secret_values sv,
@@ -296,7 +297,8 @@ module KStor
     # in: secret ID, group ID, encrypted metadata and value
     # out: nil
     def secret_value_create(secret_id, group_id, ciphertext, encrypted_metadata)
-      @db.execute(<<-EOSQL, secret_id, group_id, ciphertext, encrypted_metadata)
+      params = [ciphertext.to_s, encrypted_metadata.to_s]
+      @db.execute(<<-EOSQL, secret_id, group_id, *params)
         INSERT INTO secret_values (
           secret_id, group_id,
           ciphertext, encrypted_metadata

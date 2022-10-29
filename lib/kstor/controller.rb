@@ -64,7 +64,7 @@ module KStor
       secrets = secret_search(Model::SecretMeta.new(**req.args))
       Response.new(
         'secret.list',
-        'secrets' => secrets
+        'secrets' => secrets.map(&:id)
       )
     end
 

@@ -37,7 +37,7 @@ module KStor
     # out: plaintext
     def secret_unlock(secret_id)
       secret = @store.secret_fetch(secret_id, @user.id)
-      group_privk = @user.keychain[secret.group_id]
+      group_privk = @user.keychain[secret.group_id].privk
       author = users[secret.value_author_id]
       secret.unlock(author.pubk, group_privk)
     end

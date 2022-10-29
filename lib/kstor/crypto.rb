@@ -38,12 +38,13 @@ module KStor
       #   if nil, use defaults.
       # @return [SecretKey] secret key and KDF parameters
       def key_derive(passphrase, params = nil)
+        params ||= key_derive_params_generate
         Log.debug("crypto: kdf params = #{params.to_hash}")
         data = RbNaCl::PasswordHash.argon2(
           passphrase, params['salt'],
           params['opslimit'], params['memlimit'], params['digest_size']
         )
-        SecretKey.new(ArmoredValue.from_binary(data), params.to_s)
+        SecretKey.new(ArmoredValue.from_binary(data), params)
       rescue RbNaCl::CryptoError => e
         raise Error.for_code('CRYPTO/RBNACL', e.message)
       end
@@ -90,7 +91,7 @@ module KStor
       # @return [PrivateKey] user private key
       def decrypt_user_privk(secret_key, ciphertext)
         privk_data = box_secret_decrypt(secret_key, ciphertext)
-        PrivateKey.from_bytes(privk_data)
+        PrivateKey.from_binary(privk_data)
       end
 
       # Encrypt and sign group private key.
@@ -121,9 +122,7 @@ module KStor
       # @param [String] value secret value
       # @return [ArmoredValue] ASCII-armored encrypted secret value
       def encrypt_secret_value(group_pubk, author_privk, value)
-        ArmoredValue.from_binary(
-          box_pair_encrypt(group_pubk, author_privk, value)
-        )
+        box_pair_encrypt(group_pubk, author_privk, value)
       end
 
       # Decrypt and verify secret value.
@@ -221,7 +220,7 @@ module KStor
       # @param [PrivateKey] privk private key
       # @return [RbNaCl::SimpleBox] the box
       def make_pair_box(pubk, privk)
-        RbNaCl::SimpleBox.from_keypair(pubk.to_rbnacl, privk.to_rbnacl)
+        RbNaCl::SimpleBox.from_keypair(pubk.to_binary, privk.to_binary)
       end
 
       # Generate new parameters for the Key Derivation Function.
