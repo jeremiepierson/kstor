@@ -20,6 +20,11 @@ module KStor
     error_message 'Invalid session ID %s'
   end
 
+  class MissingLoginPassword < Error
+    error_code 'AUTH/MISSING'
+    error_message 'Missing login and password'
+  end
+
   # Error: unknown request type.
   class UnknownRequestType < Error
     error_code 'REQ/UNKNOWN'
@@ -63,10 +68,12 @@ module KStor
       end
 
       group = group_create(user, req.args['name'])
+      @groups = nil
       Response.new(
         'group.created',
         'group_id' => group.id,
-        'group_name' => group.name
+        'group_name' => group.name,
+        'group_pubk' => group.pubk
       )
     end
 
@@ -74,13 +81,20 @@ module KStor
       secrets = secret_search(user, Model::SecretMeta.new(**req.args))
       Response.new(
         'secret.list',
-        'secrets' => secrets.map(&:id)
+        **secrets.map(&:to_h)
       )
     end
 
     def handle_secret_unlock(user, req)
-      plaintext = secret_unlock(user, req.args['secret_id'])
-      Response.new('secret.value', 'plaintext' => plaintext)
+      secret_id = req.args['secret_id']
+      secret = secret_unlock(user, secret_id)
+      args = secret.to_h
+      args['value_author'] = users[secret.value_author_id].to_h
+      args['metadata_author'] = users[secret.meta_author_id].to_h
+      secret.lock
+      group_ids = @store.groups_for_secret(secret_id)
+      args['groups'] = groups.values_at(*group_ids).map(&:to_h)
+      Response.new('secret.value', **args)
     end
 
     def handle_secret_create(user, req)
@@ -155,9 +169,7 @@ module KStor
     end
 
     def create_first_user(req)
-      unless req.respond_to?(:login)
-        raise Error.for_code('AUTH/BADSESSION', req.session_id)
-      end
+      raise Error.for_code('AUTH/MISSING') unless req.respond_to?(:login)
 
       Log.info("no user in database, creating #{req.login.inspect}")
       user = Model::User.new(

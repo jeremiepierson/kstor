@@ -12,16 +12,16 @@ module KStor
       class << self
         attr_reader :properties
 
-        def property(name)
+        def property(name, read_only: false)
           @properties ||= []
           @properties << name
           define_method(name) { @data[name] }
+          return if read_only
+
           define_method("#{name}=".to_sym) do |value|
             @data[name] = value
             @dirty = true
           end
-          define_method(:dirty?) { @dirty }
-          define_method(:clean) { @dirty = false }
         end
 
         def property?(name)
@@ -34,6 +34,20 @@ module KStor
         values.each do |k, v|
           @data[k] = v if self.class.property?(k)
         end
+        @dirty = false
+      end
+
+      def dirty?
+        @dirty
+      end
+
+      def clean
+        @dirty = false
+      end
+
+      def to_h
+        Log.debug('model::base: #to_h called')
+        @data.to_h { |k, v| [k.to_s, v.respond_to?(:to_h) ? v.to_h : v] }
       end
     end
 
@@ -42,6 +56,13 @@ module KStor
       property :id
       property :name
       property :pubk
+
+      def to_h
+        h = super
+        h.delete('pubk')
+
+        h
+      end
     end
 
     # An item in a user keychain: associates a group and it's private key,
@@ -67,6 +88,21 @@ module KStor
       def lock
         self.privk = nil
       end
+
+      def locked?
+        privk.nil?
+      end
+
+      def unlocked?
+        !locked?
+      end
+
+      def to_h
+        h = super
+        Log.debug('model::keychainitem: to_h called')
+        h.delete('encrypted_privk')
+        h
+      end
     end
 
     # A person allowed to connect to the application.
@@ -88,6 +124,8 @@ module KStor
       end
 
       def unlock(secret_key)
+        return if unlocked?
+
         Log.debug("model: unlock user #{login}")
         self.privk = Crypto.decrypt_user_privk(secret_key, encrypted_privk)
         keychain.each_value { |it| it.unlock(it.group_pubk, privk) }
@@ -102,13 +140,28 @@ module KStor
       end
 
       def lock
+        return if locked?
+
         self.privk = nil
         keychain.each_value(&:lock)
       end
 
+      def locked?
+        privk.nil? && keychain.all? { |_, it| it.locked? }
+      end
+
+      def unlocked?
+        !privk.nil? || keychain.any? { |_, it| it.unlocked? }
+      end
+
       def reset_password(password, old_password = nil)
         Log.info("model: resetting password for user #{login}")
-        reset_key_pair unless old_password && initialized?
+        if old_password && initialized?
+          old_secret_key = secret_key(old_password)
+          unlock(old_secret_key)
+        else
+          reset_key_pair
+        end
         secret_key = Crypto.key_derive(password)
         self.kdf_params = secret_key.kdf_params
         encrypt(secret_key)
@@ -122,6 +175,16 @@ module KStor
         encrypt(new_secret_key)
       end
 
+      def to_h
+        h = super
+        Log.debug('model::user: to_h called')
+        h.delete('encrypted_privk')
+        h.delete('pubk')
+        h['keychain'] = keychain.transform_values(&:to_h) if keychain
+
+        h
+      end
+
       private
 
       def initialized?
@@ -131,6 +194,7 @@ module KStor
       def reset_key_pair
         Log.info("model: generating new key pair for user #{login}")
         self.pubk, self.privk = Crypto.generate_key_pair
+        self.keychain = {}
       end
     end
 
@@ -151,8 +215,9 @@ module KStor
       end
 
       def to_h
+        Log.debug('model::secretmeta: to_h called')
         { 'app' => @app, 'db' => @db, 'login' => @login,
-          'server' => @server, 'url' => @url }
+          'server' => @server, 'url' => @url }.compact
       end
 
       def serialize
@@ -180,17 +245,18 @@ module KStor
       property :meta_author_id
       property :group_id
       property :ciphertext
+      property :plaintext
       property :encrypted_metadata
+      property :metadata, read_only: true
 
-      attr_reader :metadata
-
-      # FIXME! use Crypto::ArmoredHash
       def metadata=(armored_hash)
-        @metadata = SecretMeta.load(armored_hash)
+        @data['metadata'] = armored_hash ? SecretMeta.load(armored_hash) : nil
       end
 
       def unlock(author_pubk, group_privk)
-        Crypto.decrypt_secret_value(author_pubk, group_privk, ciphertext)
+        self.plaintext = Crypto.decrypt_secret_value(
+          author_pubk, group_privk, ciphertext
+        )
       end
 
       def unlock_metadata(author_pubk, group_privk)
@@ -198,6 +264,21 @@ module KStor
         self.metadata = Crypto.decrypt_secret_metadata(
           author_pubk, group_privk, encrypted_metadata
         )
+      end
+
+      def lock
+        self.metadata = nil
+        self.plaintext = nil
+      end
+
+      def to_h
+        h = super
+        Log.debug('model::secret: to_h called')
+        h.delete('ciphertext')
+        h.delete('encrypted_metadata')
+        Log.debug("model::secret: to_h -> #{h.inspect}")
+
+        h
       end
     end
   end

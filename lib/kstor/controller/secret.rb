@@ -40,6 +40,12 @@ module KStor
       group_privk = user.keychain[secret.group_id].privk
       author = users[secret.value_author_id]
       secret.unlock(author.pubk, group_privk)
+
+      group_privk = user.keychain[secret.group_id].privk
+      author = users[secret.meta_author_id]
+      secret.unlock_metadata(author.pubk, group_privk)
+
+      secret
     end
 
     # in: plaintext, group ids, metadata
