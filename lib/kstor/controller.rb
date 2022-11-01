@@ -79,9 +79,14 @@ module KStor
 
     def handle_secret_search(user, req)
       secrets = secret_search(user, Model::SecretMeta.new(**req.args))
+      args = secrets.map do |s|
+        h = s.to_h
+        h.delete('group_id')
+        h
+      end
       Response.new(
         'secret.list',
-        **secrets.map(&:to_h)
+        { 'secrets' => args }
       )
     end
 

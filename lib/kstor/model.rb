@@ -15,7 +15,9 @@ module KStor
         def property(name, read_only: false)
           @properties ||= []
           @properties << name
-          define_method(name) { @data[name] }
+          define_method(name) do
+            @data[name]
+          end
           return if read_only
 
           define_method("#{name}=".to_sym) do |value|
@@ -46,7 +48,6 @@ module KStor
       end
 
       def to_h
-        Log.debug('model::base: #to_h called')
         @data.to_h { |k, v| [k.to_s, v.respond_to?(:to_h) ? v.to_h : v] }
       end
     end
@@ -99,7 +100,6 @@ module KStor
 
       def to_h
         h = super
-        Log.debug('model::keychainitem: to_h called')
         h.delete('encrypted_privk')
         h
       end
@@ -177,7 +177,6 @@ module KStor
 
       def to_h
         h = super
-        Log.debug('model::user: to_h called')
         h.delete('encrypted_privk')
         h.delete('pubk')
         h['keychain'] = keychain.transform_values(&:to_h) if keychain
@@ -215,7 +214,6 @@ module KStor
       end
 
       def to_h
-        Log.debug('model::secretmeta: to_h called')
         { 'app' => @app, 'db' => @db, 'login' => @login,
           'server' => @server, 'url' => @url }.compact
       end
@@ -229,12 +227,19 @@ module KStor
       end
 
       def match?(meta)
-        to_h.values.zip(meta.to_h.values).all? do |val, wildcard|
-          (val.nil? || wildcard.nil?) ||
-            File.fnmatch?(
-              wildcard, val, File::FNM_CASEFOLD | File::FNM_DOTMATCH
-            )
+        self_h = to_h
+        other_h = meta.to_h
+        other_h.each do |k, wildcard|
+          val = self_h[k]
+          next if val.nil?
+          next if wildcard.nil?
+
+          key_matched = File.fnmatch?(
+            wildcard, val, File::FNM_CASEFOLD | File::FNM_DOTMATCH
+          )
+          return false unless key_matched
         end
+        true
       end
     end
 
@@ -250,7 +255,7 @@ module KStor
       property :metadata, read_only: true
 
       def metadata=(armored_hash)
-        @data['metadata'] = armored_hash ? SecretMeta.load(armored_hash) : nil
+        @data[:metadata] = armored_hash ? SecretMeta.load(armored_hash) : nil
       end
 
       def unlock(author_pubk, group_privk)
@@ -260,7 +265,6 @@ module KStor
       end
 
       def unlock_metadata(author_pubk, group_privk)
-        Log.debug("model: secret data = #{@data.inspect}")
         self.metadata = Crypto.decrypt_secret_metadata(
           author_pubk, group_privk, encrypted_metadata
         )
@@ -273,12 +277,10 @@ module KStor
 
       def to_h
         h = super
-        Log.debug('model::secret: to_h called')
         h.delete('ciphertext')
         h.delete('encrypted_metadata')
         h.delete('value_author_id')
         h.delete('meta_author_id')
-        Log.debug("model::secret: to_h -> #{h.inspect}")
 
         h
       end
