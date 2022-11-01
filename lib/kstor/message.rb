@@ -53,12 +53,13 @@ module KStor
     end
 
     def inspect
-      format(
-        '#<Request:%<id>x @login=%<login>s @password="******" @args=%<args>s',
-        id: __id__,
-        login: @login.inspect,
-        args: @args.inspect
-      )
+      fmt = [
+        '#<KStor::LoginRequest:%<id>x',
+        '@login=%<login>s',
+        '@password="******"',
+        '@args=%<args>s>'
+      ].join(' ')
+      format(fmt, id: object_id, login: @login.inspect, args: @args.inspect)
     end
 
     def to_h
@@ -73,6 +74,15 @@ module KStor
     def initialize(session_id, *args)
       @session_id = session_id
       super(*args)
+    end
+
+    def inspect
+      fmt = [
+        '#<KStor::SessionRequest:%<id>x',
+        '@session_id=******',
+        '@args=%<args>s>'
+      ].join(' ')
+      format(fmt, id: object_id, args: @args.inspect)
     end
 
     def to_h
