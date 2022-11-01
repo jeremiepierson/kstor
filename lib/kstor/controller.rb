@@ -85,7 +85,7 @@ module KStor
 
     def handle_secret_create(user, req)
       meta = Model::SecretMeta.new(**req.args['meta'])
-      secret_groups = req.args['group_ids'].map { |gid| groups[gid] }
+      secret_groups = req.args['group_ids'].map { |gid| groups[gid.to_i] }
       secret_id = secret_create(
         user, req.args['plaintext'], secret_groups, meta
       )
@@ -155,12 +155,13 @@ module KStor
     end
 
     def create_first_user(req)
+      unless req.respond_to?(:login)
+        raise Error.for_code('AUTH/BADSESSION', req.session_id)
+      end
+
       Log.info("no user in database, creating #{req.login.inspect}")
       user = Model::User.new(
-        login: req.login,
-        name: req.login,
-        status: 'new',
-        keychain: {}
+        login: req.login, name: req.login, status: 'new', keychain: {}
       )
       secret_key = user.secret_key(req.password)
       user.unlock(secret_key)

@@ -47,6 +47,7 @@ module KStor
     # out: secret id
     def secret_create(user, plaintext, groups, meta)
       encrypted_data = {}
+      Log.debug("secret_create: group_ids = #{groups.inspect}")
       groups.each do |g|
         encrypted_data[g.id] = [
           Crypto.encrypt_secret_value(g.pubk, user.privk, plaintext),

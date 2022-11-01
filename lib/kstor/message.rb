@@ -96,6 +96,10 @@ module KStor
       @args['session_id'] = sid
     end
 
+    def session_id
+      @args['session_id']
+    end
+
     def self.parse(str)
       data = JSON.parse(str)
       new(data['type'], data['args'])
