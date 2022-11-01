@@ -276,6 +276,8 @@ module KStor
         Log.debug('model::secret: to_h called')
         h.delete('ciphertext')
         h.delete('encrypted_metadata')
+        h.delete('value_author_id')
+        h.delete('meta_author_id')
         Log.debug("model::secret: to_h -> #{h.inspect}")
 
         h

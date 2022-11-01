@@ -7,7 +7,6 @@ require 'kstor/log'
 module KStor
   # Store and fetch objects in an SQLite database.
   # rubocop:disable Metrics/MethodLength
-  # rubocop:disable Metrics/ClassLength
   class Store
     def initialize(file_path)
       @file_path = file_path
@@ -215,6 +214,7 @@ module KStor
             WHERE gm.user_id = ?
               AND gm.group_id = sv.group_id
               AND sv.secret_id = ?
+              AND s.id = sv.secret_id
       EOSQL
       return nil if rows.empty?
 
@@ -380,5 +380,4 @@ module KStor
     end
   end
   # rubocop:enable Metrics/MethodLength
-  # rubocop:enable Metrics/ClassLength
 end
