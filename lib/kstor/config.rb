@@ -28,8 +28,10 @@ module KStor
       @data = hash
     end
 
-    def [](key)
-      @data[key]
+    DEFAULTS.each_key do |k|
+      define_method(k.to_sym) do
+        @data[k]
+      end
     end
   end
 end
