@@ -3,6 +3,9 @@
 require 'json'
 
 module KStor
+  class RequestMissesAuthData < RuntimeError
+  end
+
   # A user request or response.
   class Message
     attr_reader :type
@@ -20,10 +23,26 @@ module KStor
     def serialize
       to_h.to_json
     end
+
+    def self.parse_request(str)
+      data = JSON.parse(str)
+      if data.key?('login') && data.key?('password')
+        LoginRequest.new(
+          data['login'], data['password'],
+          data['type'], data['args']
+        )
+      elsif data.key?('session_id')
+        SessionRequest.new(
+          data['session_id'], data['type'], data['args']
+        )
+      else
+        raise RequestMissesAuthData
+      end
+    end
   end
 
-  # A user request.
-  class Request < Message
+  # A user authentication request.
+  class LoginRequest < Message
     attr_reader :login
     attr_reader :password
 
@@ -42,20 +61,38 @@ module KStor
       )
     end
 
-    def self.parse(str)
-      data = JSON.parse(str)
-      new(
-        data['login'], data['password'],
-        data['type'], data['args']
-      )
-    end
-
     def to_h
       super.merge('login' => @login, 'password' => @password)
     end
   end
 
+  # A user request with a session ID.
+  class SessionRequest < Message
+    attr_reader :session_id
+
+    def initialize(session_id, *args)
+      @session_id = session_id
+      super(*args)
+    end
+
+    def to_h
+      super.merge('session_id' => @session_id)
+    end
+  end
+
   # Response to a user request.
   class Response < Message
+    def session_id=(sid)
+      @args['session_id'] = sid
+    end
+
+    def self.parse(str)
+      data = JSON.parse(str)
+      new(data['type'], data['args'])
+    end
+
+    def error?
+      @type == 'error'
+    end
   end
 end

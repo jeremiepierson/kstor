@@ -1,23 +1,35 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
+
 require 'kstor/message'
 
 require 'json'
 require 'socket'
 
-login = 'jpi'
-password = 'secret'
+hreq = if ENV['kstor_sid'].nil?
+         { 'login' => 'jpi', 'password' => 'secret' }
+       else
+         { 'session_id' => ENV.fetch('kstor_sid') }
+       end
 request_type = ARGV.shift
 request_args = JSON.parse(ARGV.shift)
 
-hreq = {
-  'login' => login, 'password' => password,
-  'type' => request_type, 'args' => request_args
-}
-req = KStor::Request.parse(hreq.to_json)
+hreq.merge!({ 'type' => request_type, 'args' => request_args })
+req = KStor::Message.parse_request(hreq.to_json)
 
 s = UNIXSocket.new('/home/jpi/code/kstor/testworkdir/kstor.socket')
 s.send(req.serialize, 0)
-data, = s.recvfrom(4906)
-puts data
+data, = s.recvfrom(4096)
+resp = KStor::Response.parse(data)
+if resp.error?
+  if resp.args['code'] == 'AUTH/BADSESSION'
+    warn('session expired')
+  else
+    warn(resp.args['message'])
+  end
+  exit 1
+else
+  puts resp.serialize
+end

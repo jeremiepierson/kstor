@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-require 'kstor/crypto'
-
 require 'json'
+require 'securerandom'
+
+require 'kstor/crypto'
 
 module KStor
   module Model
@@ -57,10 +58,14 @@ module KStor
         )
       end
 
-      def lock(user_pubk)
+      def encrypt(user_pubk)
         self.encrypted_privk = Crypto.encrypt_group_privk(
           user_pubk, privk, privk
         )
+      end
+
+      def lock
+        self.privk = nil
       end
     end
 
@@ -76,21 +81,29 @@ module KStor
       property :privk
       property :keychain
 
-      def unlock(password)
-        Log.debug("model: unlock user #{login}")
+      def secret_key(password)
+        Log.debug("model: deriving secret key for user #{login}")
         reset_password(password) unless initialized?
-        secret_key = Crypto.key_derive(password, kdf_params)
+        Crypto.key_derive(password, kdf_params)
+      end
+
+      def unlock(secret_key)
+        Log.debug("model: unlock user #{login}")
         self.privk = Crypto.decrypt_user_privk(secret_key, encrypted_privk)
         keychain.each_value { |it| it.unlock(it.group_pubk, privk) }
       end
 
-      def lock(password)
+      def encrypt(secret_key)
         Log.debug("model: lock user data for #{login}")
-        secret_key = Crypto.key_derive(password, kdf_params)
         self.encrypted_privk = Crypto.encrypt_user_privk(
           secret_key, privk
         )
-        keychain.each_value { |it| it.lock(pubk) }
+        keychain.each_value { |it| it.encrypt(pubk) }
+      end
+
+      def lock
+        self.privk = nil
+        keychain.each_value(&:lock)
       end
 
       def reset_password(password, old_password = nil)
@@ -98,13 +111,15 @@ module KStor
         reset_key_pair unless old_password && initialized?
         secret_key = Crypto.key_derive(password)
         self.kdf_params = secret_key.kdf_params
-        lock(password)
+        encrypt(secret_key)
       end
 
       def change_password(password, new_password)
         Log.info("model: changing password for user #{login}")
-        unlock(password)
-        lock(new_password)
+        old_secret_key = secret_key(password)
+        unlock(old_secret_key)
+        new_secret_key = secret_key(new_password)
+        encrypt(new_secret_key)
       end
 
       private

@@ -14,6 +14,12 @@ module KStor
     error_message 'User %s not allowed.'
   end
 
+  # Error: invalid session ID
+  class InvalidSession < Error
+    error_code 'AUTH/BADSESSION'
+    error_message 'Invalid session ID %s'
+  end
+
   # Error: unknown request type.
   class UnknownRequestType < Error
     error_code 'REQ/UNKNOWN'
@@ -31,14 +37,18 @@ module KStor
     include UserController
     include SecretController
 
-    def initialize(store)
+    def initialize(store, session_store)
       @store = store
+      @sessions = session_store
     end
 
     def handle_request(req)
       method_name = method_name_from_request_type(req)
-      @store.users? ? unlock_user(req) : create_first_user(req)
-      @store.transaction { __send__(method_name, req) }
+      user, sid = @store.users? ? unlock_user(req) : create_first_user(req)
+      resp = @store.transaction { __send__(method_name, user, req) }
+      user.lock
+      resp.session_id = sid
+      resp
     rescue RbNaClError => e
       Log.exception(e)
       Error.for_code('CRYPTO/UNSPECIFIED').response
@@ -47,12 +57,12 @@ module KStor
       e.response
     end
 
-    def handle_group_create(req)
+    def handle_group_create(user, req)
       unless req.args['name']
         raise Error.for_code('REQ/MISSINGARG', 'name', req.type)
       end
 
-      group = group_create(req.args['name'])
+      group = group_create(user, req.args['name'])
       Response.new(
         'group.created',
         'group_id' => group.id,
@@ -60,36 +70,36 @@ module KStor
       )
     end
 
-    def handle_secret_search(req)
-      secrets = secret_search(Model::SecretMeta.new(**req.args))
+    def handle_secret_search(user, req)
+      secrets = secret_search(user, Model::SecretMeta.new(**req.args))
       Response.new(
         'secret.list',
         'secrets' => secrets.map(&:id)
       )
     end
 
-    def handle_secret_unlock(req)
-      plaintext = secret_unlock(req.args['secret_id'])
+    def handle_secret_unlock(user, req)
+      plaintext = secret_unlock(user, req.args['secret_id'])
       Response.new('secret.value', 'plaintext' => plaintext)
     end
 
-    def handle_secret_create(req)
+    def handle_secret_create(user, req)
       meta = Model::SecretMeta.new(**req.args['meta'])
       secret_groups = req.args['group_ids'].map { |gid| groups[gid] }
       secret_id = secret_create(
-        req.args['plaintext'], secret_groups, meta
+        user, req.args['plaintext'], secret_groups, meta
       )
       Response.new('secret.created', 'secret_id' => secret_id)
     end
 
-    def handle_secret_updatemeta(req)
+    def handle_secret_updatemeta(user, req)
       meta = Model::SecretMeta.new(req.args['meta'])
-      secret_update_meta(req.args['secret_id'], meta)
+      secret_update_meta(user, req.args['secret_id'], meta)
       Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
     end
 
-    def handle_secret_updatevalue(req)
-      secret_update_value(req.args['secret_id'], req.args['plaintext'])
+    def handle_secret_updatevalue(user, req)
+      secret_update_value(user, req.args['secret_id'], req.args['plaintext'])
       Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
     end
 
@@ -101,14 +111,38 @@ module KStor
     end
 
     def unlock_user(req)
-      Log.debug("unlocking user #{req.login.inspect}")
-      @user = @store.user_by_login(req.login)
-      Log.debug("loaded user ##{@user.id} #{@user.login}")
-      unless @user && allowed?(@user)
-        raise Error.for_code('AUTH/FORBIDDEN', req.login)
+      if req.respond_to?(:session_id)
+        session_id = req.session_id
+        user, secret_key = load_session(session_id)
+      else
+        user = load_user(req.login)
+        secret_key = user.secret_key(req.password)
+        session = Session.create(user, secret_key)
+        @sessions << session
+        session_id = session.id
+      end
+      user.unlock(secret_key)
+
+      [user, session_id]
+    end
+
+    def load_session(sid)
+      Log.debug("loading session #{sid}")
+      session = @sessions[sid]
+      raise Error.for_code('AUTH/BADSESSION', sid) unless session
+
+      [session.user, session.secret_key]
+    end
+
+    def load_user(login)
+      Log.debug("authenticating user #{login.inspect}")
+      user = @store.user_by_login(login)
+      Log.debug("loaded user ##{user.id} #{user.login}")
+      unless user && allowed?(user)
+        raise Error.for_code('AUTH/FORBIDDEN', login)
       end
 
-      @user.unlock(req.password)
+      user
     end
 
     def method_name_from_request_type(req)
@@ -122,15 +156,21 @@ module KStor
 
     def create_first_user(req)
       Log.info("no user in database, creating #{req.login.inspect}")
-      @user = Model::User.new(
+      user = Model::User.new(
         login: req.login,
         name: req.login,
         status: 'new',
         keychain: {}
       )
-      @user.unlock(req.password)
-      @store.user_create(@user)
-      Log.info("user #{@user.login} created")
+      secret_key = user.secret_key(req.password)
+      user.unlock(secret_key)
+      @store.user_create(user)
+      Log.info("user #{user.login} created")
+
+      session = Session.create(user, secret_key)
+      @sessions << session
+
+      [user, session.id]
     end
   end
 end

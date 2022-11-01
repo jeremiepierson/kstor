@@ -8,14 +8,19 @@ require 'kstor/store'
 require 'kstor/controller'
 require 'kstor/server'
 require 'kstor/log'
+require 'kstor/session'
 
 KStor::Log.reporting_level = Journald::LOG_DEBUG
 
 config = KStor::Config.load(ARGV.shift)
 
 store = KStor::Store.new(config['database'])
+session_store = KStor::SessionStore.new(
+  config['session_idle_timeout'],
+  config['session_life_timeout']
+)
 server = KStor::Server.new(
-  controller: KStor::Controller.new(store),
+  controller: KStor::Controller.new(store, session_store),
   socket_path: config['socket'],
   nworkers: config['nworkers']
 )

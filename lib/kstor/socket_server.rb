@@ -56,11 +56,11 @@ module KStor
                 'for workers to finish')
       Timeout.timeout(GRACEFUL_TIMEOUT) { @workers.each(&:join) }
     rescue Timeout::Error
+      Log.warn('socket_server: graceful timeout reached, killing workers')
       immediate_stop(server)
     end
 
     def immediate_stop
-      Log.warn('socket_server: graceful timeout reached, killing workers')
       @workers.each { |w| w.raise(Interrupt.new('abort')) }
       @workers.each(&:join)
     end
