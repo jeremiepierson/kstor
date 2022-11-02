@@ -93,12 +93,8 @@ module KStor
     def handle_secret_unlock(user, req)
       secret_id = req.args['secret_id']
       secret = secret_unlock(user, secret_id)
-      args = secret.to_h
-      args['value_author'] = users[secret.value_author_id].to_h
-      args['metadata_author'] = users[secret.meta_author_id].to_h
-      secret.lock
-      group_ids = @store.groups_for_secret(secret_id)
-      args['groups'] = groups.values_at(*group_ids).map(&:to_h)
+      args = secret_unlock_format(secret)
+
       Response.new('secret.value', **args)
     end
 
@@ -123,6 +119,17 @@ module KStor
     end
 
     private
+
+    def secret_unlock_format(secret)
+      args = secret.to_h
+      args['value_author'] = users[secret.value_author_id].to_h
+      args['metadata_author'] = users[secret.meta_author_id].to_h
+
+      group_ids = @store.groups_for_secret(secret_id)
+      args['groups'] = groups.values_at(*group_ids).map(&:to_h)
+
+      args
+    end
 
     # return true if login is allowed to access the database.
     def allowed?(user)

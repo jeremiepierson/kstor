@@ -12,15 +12,72 @@ require 'fileutils'
 require 'slop'
 
 module KStor
+  # Manage KStor client configuration and state on disk.
+  module ClientState
+    class << self
+      DEFAULT_CONFIG = {
+        'socket' => '/home/jpi/code/kstor/testworkdir/kstor.socket'
+      }.freeze
+
+      def load_config
+        DEFAULT_CONFIG.merge(load_config_file)
+      end
+
+      def session_id_file
+        dir = File.join(xdg_runtime, @progr)
+        FileUtils.mkdir_p(dir)
+        file = File.join(dir, 'session-id')
+        FileUtils.touch(file)
+        FileUtils.chmod(0o600, file)
+        file
+      end
+
+      def load_session_id
+        sid = nil
+        File.open(session_id_file) { |f| sid = f.read.chomp }
+        sid = nil if sid.empty?
+
+        sid
+      end
+
+      private
+
+      def xdg_config
+        ENV.fetch('XDG_CONFIG_HOME', File.join(Dir.home, '.config'))
+      end
+
+      def xdg_state
+        ENV.fetch('XDG_STATE_HOME', File.join(Dir.home, '.local', 'state'))
+      end
+
+      def xdg_runtime
+        dir = ENV.fetch('XDG_RUNTIME_DIR', nil)
+        return dir if dir
+
+        warn('XDG_RUNTIME_DIR is undefined, using XDG_STATE_HOME instead')
+        xdg_state
+      end
+
+      def config_file
+        dir = File.join(xdg_config, @progr)
+        FileUtils.mkdir_p(dir)
+        File.join(dir, 'session-id')
+      end
+
+      def load_config_file
+        data = File.read(config_file)
+        YAML.parse(data)
+      rescue Errno::ENOENT
+        {}
+      end
+    end
+  end
+
   # KStor command-line client.
   class Client
-    DEFAULT_CONFIG = {
-      'socket' => '/home/jpi/code/kstor/testworkdir/kstor.socket'
-    }.freeze
-
     def initialize
       @progr = File.basename($PROGRAM_NAME)
-      @config = load_config
+      @config = ClientState.load_config
       @user = user_from_argv
     end
 
@@ -32,7 +89,9 @@ module KStor
       puts format_response(resp)
       return unless resp.respond_to?(:session_id)
 
-      File.open(session_id_file, 'w') { |f| f.puts(resp.session_id) }
+      File.open(ClientState.session_id_file, 'w') do |f|
+        f.puts(resp.session_id)
+      end
     end
 
     private
@@ -92,7 +151,7 @@ module KStor
 
     def handle_error!(resp)
       if resp.args['code'] == 'AUTH/BADSESSION'
-        FileUtils.rm(session_id_file)
+        FileUtils.rm(ClientState.session_id_file)
         warn('session expired')
       else
         warn(resp.args['message'])
@@ -127,10 +186,6 @@ module KStor
       end
     end
 
-    def load_config
-      DEFAULT_CONFIG.merge(load_config_file)
-    end
-
     def user_from_argv
       md = /^(-u|--user)$/.match(ARGV.first)
       md ? ARGV.shift(2).last : Etc.getlogin
@@ -140,52 +195,6 @@ module KStor
       puts "usage: #{@progr} [--user USER] <req-type> [--help | REQ-ARGS]"
       request_types = %w[group-create secret-create secret-search secret-unlock]
       puts "request types: #{request_types.join(', ')}"
-    end
-
-    def xdg_config
-      ENV.fetch('XDG_CONFIG_HOME', File.join(Dir.home, '.config'))
-    end
-
-    def xdg_state
-      ENV.fetch('XDG_STATE_HOME', File.join(Dir.home, '.local', 'state'))
-    end
-
-    def xdg_runtime
-      dir = ENV.fetch('XDG_RUNTIME_DIR', nil)
-      return dir if dir
-
-      warn('XDG_RUNTIME_DIR is undefined, using XDG_STATE_HOME instead')
-      xdg_state
-    end
-
-    def session_id_file
-      dir = File.join(xdg_runtime, @progr)
-      FileUtils.mkdir_p(dir)
-      file = File.join(dir, 'session-id')
-      FileUtils.touch(file)
-      FileUtils.chmod(0o600, file)
-      file
-    end
-
-    def config_file
-      dir = File.join(xdg_config, @progr)
-      FileUtils.mkdir_p(dir)
-      File.join(dir, 'session-id')
-    end
-
-    def load_config_file
-      data = File.read(config_file)
-      YAML.parse(data)
-    rescue Errno::ENOENT
-      {}
-    end
-
-    def load_session_id
-      sid = nil
-      File.open(session_id_file) { |f| sid = f.read.chomp }
-      sid = nil if sid.empty?
-
-      sid
     end
 
     def ask_password
@@ -199,7 +208,7 @@ module KStor
     end
 
     def auth
-      session_id = load_session_id
+      session_id = ClientState.load_session_id
 
       if session_id
         { 'session_id' => session_id }

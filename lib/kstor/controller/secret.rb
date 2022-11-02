@@ -38,12 +38,12 @@ module KStor
     def secret_unlock(user, secret_id)
       secret = @store.secret_fetch(secret_id, user.id)
       group_privk = user.keychain[secret.group_id].privk
-      author = users[secret.value_author_id]
-      secret.unlock(author.pubk, group_privk)
 
-      group_privk = user.keychain[secret.group_id].privk
-      author = users[secret.meta_author_id]
-      secret.unlock_metadata(author.pubk, group_privk)
+      value_author = users[secret.value_author_id]
+      secret.unlock(value_author.pubk, group_privk)
+
+      meta_author = users[secret.meta_author_id]
+      secret.unlock_metadata(meta_author.pubk, group_privk)
 
       secret
     end
