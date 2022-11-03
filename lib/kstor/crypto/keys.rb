@@ -14,7 +14,7 @@ module KStor
       # Create a SecretKey instance.
       #
       # @param [String] value ASCII-armored secret key derived from passphrase
-      # @param [String] kdf_param ASCII-armored key derivation parameters
+      # @param [String] kdf_params ASCII-armored key derivation parameters
       # @return [SecretKey] the SecretKey object
       def initialize(value, kdf_params)
         @value = value

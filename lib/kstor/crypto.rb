@@ -34,7 +34,7 @@ module KStor
       # opaque String) or pass nil to generate random parameters.
       #
       # @param passphrase [String] user passphrase as clear text
-      # @param params_str [KDFParams, nil] KDF parameters string;
+      # @param params [KDFParams, nil] KDF parameters;
       #   if nil, use defaults.
       # @return [SecretKey] secret key and KDF parameters
       def key_derive(passphrase, params = nil)
@@ -55,7 +55,7 @@ module KStor
       # passphrase, and re-encrypt everything that was encrypted with the old
       # secret key.
       #
-      # @param params_str [String] KDF params as an opaque string.
+      # @param params [String] KDF params as an opaque string.
       # @return [Boolean] false if parameters match current library version.
       def kdf_params_obsolete?(params)
         return true if params_str.nil?
