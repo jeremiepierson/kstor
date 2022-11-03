@@ -5,6 +5,10 @@ require 'yaml'
 module KStor
   # Configuration items stored as YAML.
   class Config
+    # Default values for configuration items.
+    #
+    # They are used when loading configuration from a file, and for defining
+    # accessor methods.
     DEFAULTS = {
       'database' => 'data/db.sqlite',
       'socket' => 'run/kstor-server.socket',
@@ -14,6 +18,13 @@ module KStor
     }.freeze
 
     class << self
+      # Load configuration from a file.
+      #
+      # For each missing configuration item in file, use the default from
+      # DEFAULTS.
+      #
+      # @param path [String] path to config file
+      # @return [KStor::Config] configuration object
       def load(path)
         hash = if path && File.file?(path)
                  YAML.load_file(path)
@@ -24,6 +35,9 @@ module KStor
       end
     end
 
+    # Create configuration from hash data.
+    #
+    # @param hash [Hash] configuration items
     def initialize(hash)
       @data = hash
     end
