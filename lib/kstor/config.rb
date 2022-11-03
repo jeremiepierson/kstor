@@ -9,6 +9,21 @@ module KStor
     #
     # They are used when loading configuration from a file, and for defining
     # accessor methods.
+    #
+    # @!attribute [r] database
+    #   @return [String] path to SQLite database file
+    #
+    # @!attribute [r] socket
+    #   @return [String] path to KStor server listening socket
+    #
+    # @!attribute [r] nworkers
+    #   @return [Integer] number of worker threads
+    #
+    # @!attribute [r] session_idle_timeout
+    #   @return [Integer] seconds of inactivity before a session is closed
+    #
+    # @!attribute [r] session_life_timeout
+    #   @return [Integer] seconds before a session is closed
     DEFAULTS = {
       'database' => 'data/db.sqlite',
       'socket' => 'run/kstor-server.socket',
