@@ -8,6 +8,7 @@ class TestKStorCryptoASCIIArmor < Minitest::Test
     roundtrip = KStor::Crypto::ASCIIArmor.decode(
       KStor::Crypto::ASCIIArmor.encode(s)
     )
+
     assert_equal(s, roundtrip)
   end
 end
