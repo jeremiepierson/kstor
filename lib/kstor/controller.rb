@@ -7,7 +7,7 @@ require 'kstor/message'
 require 'kstor/controller/authentication'
 require 'kstor/controller/secret'
 require 'kstor/controller/users'
-require 'kstor/controller/request-handler'
+require 'kstor/controller/request_handler'
 
 module KStor
   # Error: user was not allowed to access application.
