@@ -149,6 +149,13 @@ module KStor
       reorganize_secret_meta_args(req)
     end
 
+    def secret_update_value
+      request('secret-update-value') do |o|
+        o.string('-s', '--secret-id', 'secret ID to modify')
+        o.string('-p', '--plaintext', 'new plaintext value')
+      end
+    end
+
     def reorganize_secret_meta_args(req)
       req.args['meta'] = {
         'app' => req.args.delete('app'),
@@ -185,21 +192,27 @@ module KStor
       exit(1)
     end
 
+    REQUEST_METHODS = {
+      'group-create' => :group_create,
+      'secret-create' => :secret_create,
+      'secret-search' => :secret_search,
+      'secret-unlock' => :secret_unlock,
+      'secret-update-meta' => :secret_update_meta,
+      'secret-update-value' => :secret_update_value
+    }.freeze
+
     def method_name(request_type)
-      case request_type
-      when 'group-create' then :group_create
-      when 'secret-create' then :secret_create
-      when 'secret-search' then :secret_search
-      when 'secret-unlock' then :secret_unlock
-      when 'secret-update-meta' then :secret_update_meta
-      when nil, '--help', '-h'
+      if request_type.nil?
         base_usage
         exit 0
-      else
+      end
+      meth = REQUEST_METHODS[request_type]
+      if meth.nil?
         warn("Unknown request type #{request_type.inspect}")
         base_usage
         exit 1
       end
+      meth
     end
 
     def user_from_argv

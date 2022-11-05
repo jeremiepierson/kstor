@@ -144,12 +144,16 @@ module KStor
       # in: secret id, plaintext
       # needs: every group public key for this secret, user private key
       # out: nil
-      def update_value(user, secret, plaintext)
+      def update_value(user, secret_id, plaintext)
+        secret = @store.secret_fetch(secret_id, user.id)
         group_ids = @store.groups_for_secret(secret.id)
-        group_ciphertexts = group_ids.map do |group_id|
+        group_ciphertexts = group_ids.to_h do |group_id|
           group_pubk = groups[group_id].pubk
           author_privk = user.privk
-          Crypto.encrypt_secret_value(group_pubk, author_privk, plaintext)
+          encrypted_value = Crypto.encrypt_secret_value(
+            group_pubk, author_privk, plaintext
+          )
+          [group_id, encrypted_value]
         end
         @store.secret_setvalue(secret.id, user.id, group_ciphertexts)
       end

@@ -272,10 +272,10 @@ module KStor
     def secret_setvalue(secret_id, user_id, group_ciphertexts)
       Log.debug("store: set value for secret ##{secret_id}")
       @db.execute(<<-EOSQL, user_id, secret_id)
-        UPDATE secrets SET value_author_id = ? WHERE secret_id = ?
+        UPDATE secrets SET value_author_id = ? WHERE id = ?
       EOSQL
       group_ciphertexts.each do |group_id, ciphertext|
-        @db.execute(<<-EOSQL, ciphertext, secret_id, group_id)
+        @db.execute(<<-EOSQL, ciphertext.to_s, secret_id, group_id)
           UPDATE secret_values
              SET ciphertext = ?
            WHERE secret_id = ?
