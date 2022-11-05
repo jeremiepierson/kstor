@@ -3,6 +3,11 @@
 require 'json'
 
 module KStor
+  # Internal exception when a request is received with neither a session ID nor
+  # a login/password pair.
+  #
+  # We can't use a KStor::Error here because kstor/error.rb require()s
+  # kstor/message.rb .
   class RequestMissesAuthData < RuntimeError
   end
 
@@ -24,6 +29,11 @@ module KStor
       to_h.to_json
     end
 
+    # Parse a user request, freshly arrived from the network.
+    #
+    # @param str [String] serialized request
+    # @return [LoginRequest,SessionRequest] a request
+    # @raise [KStor::RequestMissesAuthData]
     def self.parse_request(str)
       data = JSON.parse(str)
       if data.key?('login') && data.key?('password')
@@ -46,10 +56,10 @@ module KStor
     attr_reader :login
     attr_reader :password
 
-    def initialize(login, password, *args)
+    def initialize(login, password, type, args)
       @login = login
       @password = password
-      super(*args)
+      super(type, args)
     end
 
     def inspect
@@ -71,9 +81,9 @@ module KStor
   class SessionRequest < Message
     attr_reader :session_id
 
-    def initialize(session_id, *args)
+    def initialize(session_id, type, args)
       @session_id = session_id
-      super(*args)
+      super(type, args)
     end
 
     def inspect
@@ -92,21 +102,26 @@ module KStor
 
   # Response to a user request.
   class Response < Message
-    def session_id=(sid)
-      @args['session_id'] = sid
-    end
+    attr_accessor :session_id
 
-    def session_id
-      @args['session_id']
+    def initialize(type, args)
+      @session_id = nil
+      super
     end
 
     def self.parse(str)
       data = JSON.parse(str)
-      new(data['type'], data['args'])
+      resp = new(data['type'], data['args'])
+      resp.session_id = data['session_id']
+      resp
     end
 
     def error?
       @type == 'error'
+    end
+
+    def to_h
+      super.merge('session_id' => @session_id)
     end
   end
 end

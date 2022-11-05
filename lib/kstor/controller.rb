@@ -86,7 +86,7 @@ module KStor
       end
       Response.new(
         'secret.list',
-        { 'secrets' => args }
+        'secrets' => args
       )
     end
 
