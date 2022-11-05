@@ -128,6 +128,12 @@ module KStor
         o.string('-p', '--plaintext', 'new plaintext value')
       end
     end
+
+    def secret_delete
+      request('secret-delete') do |o|
+        o.string('-s', '--secret-id', 'secret ID to delete')
+      end
+    end
   end
 
   # KStor command-line client.
@@ -193,7 +199,7 @@ module KStor
       data, = socket.recvfrom(4096)
       Response.parse(data)
     rescue UnparsableResponse
-      warn('server made a boo-boo; look at logs!')
+      warn('server speaks funny; look at logs!')
       exit(1)
     end
 
@@ -203,7 +209,8 @@ module KStor
       'secret-search' => :secret_search,
       'secret-unlock' => :secret_unlock,
       'secret-update-meta' => :secret_update_meta,
-      'secret-update-value' => :secret_update_value
+      'secret-update-value' => :secret_update_value,
+      'secret-delete' => :secret_delete
     }.freeze
 
     def method_name(request_type)

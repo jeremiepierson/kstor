@@ -67,9 +67,9 @@ module KStor
 
       def controller_from_request_type(req)
         case req.type
-        when /^secret-(create|search|unlock|update-(meta|value)?)$/
+        when /^secret-(create|delete|search|unlock|update-(meta|value)?)$/
           @secret
-        when /^group_create$/
+        when /^group-create$/
           @user
         else
           raise Error.for_code('REQ/UNKNOWN', req.type)

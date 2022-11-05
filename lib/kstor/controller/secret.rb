@@ -5,6 +5,11 @@ require 'kstor/model'
 require 'kstor/crypto'
 
 module KStor
+  class SecretNotFound < Error
+    error_code 'SECRET/NOTFOUND'
+    error_message 'Secret #%s not found.'
+  end
+
   module Controller
     # Handle secret-related requests.
     class Secret
@@ -19,6 +24,7 @@ module KStor
         when 'secret-unlock' then handle_unlock(user, req)
         when 'secret-update-meta' then handle_update_meta(user, req)
         when 'secret-update-value' then handle_update_value(user, req)
+        when 'secret-delete' then handle_delete(user, req)
         else
           raise Error.for_code('REQ/UNKNOWN', req.type)
         end
@@ -66,6 +72,11 @@ module KStor
       def handle_update_value(user, req)
         update_value(user, req.args['secret_id'], req.args['plaintext'])
         Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
+      end
+
+      def handle_delete(user, req)
+        delete(user, req.args['secret_id'])
+        Response.new('secret.deleted', 'secret_id' => req.args['secret_id'])
       end
 
       def users
@@ -161,7 +172,11 @@ module KStor
       # in: secret id
       # needs: nil
       # out: nil
-      def delete(secret_id)
+      def delete(user, secret_id)
+        # Check if user can see this secret:
+        secret = @store.secret_fetch(secret_id, user.id)
+        raise Error.for_code('SECRET/NOTFOUND', secret_id) if secret.nil?
+
         @store.secret_delete(secret_id)
       end
 
