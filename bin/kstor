@@ -73,35 +73,8 @@ module KStor
     end
   end
 
-  # KStor command-line client.
-  class Client
-    def initialize
-      @progr = File.basename($PROGRAM_NAME)
-      @config = ClientState.load_config(@progr)
-      @user = user_from_argv
-    end
-
-    def run
-      request_type = ARGV.shift
-      resp = send_request(request_type)
-      handle_error!(resp) if resp.error?
-
-      puts format_response(resp)
-      return unless resp.respond_to?(:session_id)
-
-      File.open(ClientState.session_id_file(@progr), 'w') do |f|
-        f.puts(resp.session_id)
-      end
-    end
-
-    private
-
-    def format_response(resp)
-      data = resp.args.dup
-      data.delete('session_id')
-      JSON.pretty_generate(data)
-    end
-
+  # Sub-commands that can be invoked from the command-line.
+  module ClientSubCommands
     def group_create
       request('group-create') do |o|
         o.string('-n', '--name', 'Group name')
@@ -154,6 +127,38 @@ module KStor
         o.string('-s', '--secret-id', 'secret ID to modify')
         o.string('-p', '--plaintext', 'new plaintext value')
       end
+    end
+  end
+
+  # KStor command-line client.
+  class Client
+    include ClientSubCommands
+
+    def initialize
+      @progr = File.basename($PROGRAM_NAME)
+      @config = ClientState.load_config(@progr)
+      @user = user_from_argv
+    end
+
+    def run
+      request_type = ARGV.shift
+      resp = send_request(request_type)
+      handle_error!(resp) if resp.error?
+
+      puts format_response(resp)
+      return unless resp.respond_to?(:session_id)
+
+      File.open(ClientState.session_id_file(@progr), 'w') do |f|
+        f.puts(resp.session_id)
+      end
+    end
+
+    private
+
+    def format_response(resp)
+      data = resp.args.dup
+      data.delete('session_id')
+      JSON.pretty_generate(data)
     end
 
     def reorganize_secret_meta_args(req)
@@ -257,7 +262,9 @@ module KStor
 
     def parse_opts(request_type)
       opts = Slop.parse do |o|
-        o.banner = "usage: #{@progr} [auth-opts] #{request_type} [request-args]"
+        o.banner = <<-EOUSAGE
+        usage: #{@progr} [--user USER] #{request_type} [--help | REQ-ARGS]
+        EOUSAGE
         o.on('-h', '--help', 'show this text') do
           puts o
           exit 0
