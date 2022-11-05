@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+require 'rbnacl'
+
+require 'kstor/error'
+require 'kstor/controller/authentication'
+require 'kstor/controller/secret'
+require 'kstor/controller/users'
+
 module KStor
   module Controller
     # Request handler.

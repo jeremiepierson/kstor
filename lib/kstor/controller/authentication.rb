@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+require 'kstor/error'
+require 'kstor/log'
+require 'kstor/store'
+require 'kstor/session'
+require 'kstor/model'
+
 module KStor
   module Controller
     # Handle user authentication and sessions.
