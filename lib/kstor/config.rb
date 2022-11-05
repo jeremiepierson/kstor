@@ -25,8 +25,8 @@ module KStor
     # @!attribute [r] session_life_timeout
     #   @return [Integer] seconds before a session is closed
     DEFAULTS = {
-      'database' => 'data/db.sqlite',
-      'socket' => 'run/kstor-server.socket',
+      'database' => '/var/lib/kstor/kstor.sqlite',
+      'socket' => '/run/kstor-server.socket',
       'nworkers' => 5,
       'session_idle_timeout' => 15 * 60,
       'session_life_timeout' => 4 * 60 * 60
@@ -46,7 +46,7 @@ module KStor
                else
                  {}
                end
-        new(DEFAULTS.merge(hash))
+        new(hash)
       end
     end
 
@@ -54,7 +54,7 @@ module KStor
     #
     # @param hash [Hash] configuration items
     def initialize(hash)
-      @data = hash
+      @data = DEFAULTS.merge(hash)
     end
 
     DEFAULTS.each_key do |k|
