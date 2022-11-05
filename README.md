@@ -47,3 +47,7 @@ login). Passwords are asked interactively.
 It will store session ID in XDG_RUNTIME_DIR/kstor/session-id .
 
 Each request can be authentified either with login/password or with session ID.
+
+### Badges
+
+[![Gem Version](https://badge.fury.io/rb/kstor.svg)](https://badge.fury.io/rb/kstor)
