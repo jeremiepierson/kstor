@@ -1,14 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
-
-require 'kstor/config'
-require 'kstor/store'
-require 'kstor/controller'
-require 'kstor/server'
-require 'kstor/log'
-require 'kstor/session'
+require 'kstor'
 
 KStor::Log.reporting_level = Journald::LOG_DEBUG
 
