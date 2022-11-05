@@ -257,10 +257,10 @@ module KStor
     def secret_setmeta(secret_id, user_id, group_encrypted_metadata)
       Log.debug("store: set metadata for secret ##{secret_id}")
       @db.execute(<<-EOSQL, user_id, secret_id)
-        UPDATE secrets SET meta_author_id = ? WHERE secret_id = ?
+        UPDATE secrets SET meta_author_id = ? WHERE id = ?
       EOSQL
       group_encrypted_metadata.each do |group_id, encrypted_metadata|
-        @db.execute(<<-EOSQL, encrypted_metadata, secret_id, group_id)
+        @db.execute(<<-EOSQL, encrypted_metadata.to_s, secret_id, group_id)
           UPDATE secret_values
              SET encrypted_metadata = ?
            WHERE secret_id = ?

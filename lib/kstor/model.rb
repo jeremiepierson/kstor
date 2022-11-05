@@ -312,7 +312,7 @@ module KStor
       # Secret is defined for this application
       attr_accessor :app
       # Secret is defined for this database
-      attr_accessor :db
+      attr_accessor :database
       # Secret is defined for this login
       attr_accessor :login
       # Secret is related to this server
@@ -320,16 +320,16 @@ module KStor
       # Secret should be used at this URL
       attr_accessor :url
 
-      def initialize(**values)
+      def initialize(values)
         @app = values['app']
-        @db = values['db']
+        @database = values['database']
         @login = values['login']
         @server = values['server']
         @url = values['url']
       end
 
       def to_h
-        { 'app' => @app, 'db' => @db, 'login' => @login,
+        { 'app' => @app, 'database' => @database, 'login' => @login,
           'server' => @server, 'url' => @url }.compact
       end
 
@@ -337,8 +337,14 @@ module KStor
         Crypto::ArmoredHash.from_hash(to_h)
       end
 
+      def merge(other)
+        values = to_h.merge(other.to_h)
+        values.reject! { |_, v| v.empty? }
+        self.class.new(values)
+      end
+
       def self.load(armored_hash)
-        new(**armored_hash.to_hash)
+        new(armored_hash.to_hash)
       end
 
       def match?(meta)

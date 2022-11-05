@@ -29,14 +29,14 @@ module KStor
       def handle_create(user, req)
         meta = Model::SecretMeta.new(**req.args['meta'])
         secret_groups = req.args['group_ids'].map { |gid| groups[gid.to_i] }
-        secret_id = secret_create(
+        secret_id = create(
           user, req.args['plaintext'], secret_groups, meta
         )
         Response.new('secret.created', 'secret_id' => secret_id)
       end
 
       def handle_search(user, req)
-        secrets = secret_search(user, Model::SecretMeta.new(**req.args))
+        secrets = search(user, Model::SecretMeta.new(**req.args))
         args = secrets.map do |s|
           h = s.to_h
           h.delete('group_id')
@@ -50,20 +50,21 @@ module KStor
 
       def handle_unlock(user, req)
         secret_id = req.args['secret_id']
-        secret = secret_unlock(user, secret_id)
-        args = secret_unlock_format(secret)
+        secret = unlock(user, secret_id)
+        args = unlock_format(secret)
 
         Response.new('secret.value', **args)
       end
 
       def handle_update_meta(user, req)
         meta = Model::SecretMeta.new(req.args['meta'])
-        secret_update_meta(user, req.args['secret_id'], meta)
+        Log.debug("secret#handle_update_meta: meta=#{meta.to_h.inspect}")
+        update_meta(user, req.args['secret_id'], meta)
         Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
       end
 
       def handle_update_value(user, req)
-        secret_update_value(user, req.args['secret_id'], req.args['plaintext'])
+        update_value(user, req.args['secret_id'], req.args['plaintext'])
         Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
       end
 
@@ -81,13 +82,11 @@ module KStor
       #   - secret id
       #   - secret metadata
       #   - secret metadata and value authors
-      def secret_search(user, meta)
+      def search(user, meta)
         return [] if user.keychain.empty?
 
         @store.secrets_for_user(user.id).select do |secret|
-          group_privk = user.keychain[secret.group_id].privk
-          author = users[secret.meta_author_id]
-          secret.unlock_metadata(author.pubk, group_privk)
+          unlock_metadata(user, secret)
           secret.metadata.match?(meta)
         end
       end
@@ -95,7 +94,7 @@ module KStor
       # in: secret_id
       # needs: private key of one common group between user and secret
       # out: plaintext
-      def secret_unlock(user, secret_id)
+      def unlock(user, secret_id)
         secret = @store.secret_fetch(secret_id, user.id)
         group_privk = user.keychain[secret.group_id].privk
 
@@ -111,9 +110,9 @@ module KStor
       # in: plaintext, group ids, metadata
       # needs: encrypted metadata and ciphertext for each group
       # out: secret id
-      def secret_create(user, plaintext, groups, meta)
+      def create(user, plaintext, groups, meta)
         encrypted_data = {}
-        Log.debug("secret_create: group_ids = #{groups.inspect}")
+        Log.debug("secret#create: group_ids = #{groups.inspect}")
         groups.each do |g|
           encrypted_data[g.id] = [
             Crypto.encrypt_secret_value(g.pubk, user.privk, plaintext),
@@ -126,12 +125,18 @@ module KStor
       # in: secret id, metadata
       # needs: every group public key for this secret, user private key
       # out: nil
-      def secret_update_meta(user, secret, meta)
+      def update_meta(user, secret_id, partial_meta)
+        secret = @store.secret_fetch(secret_id, user.id)
+        unlock_metadata(user, secret)
+        meta = secret.metadata.merge(partial_meta)
         group_ids = @store.groups_for_secret(secret.id)
-        group_encrypted_metadata = group_ids.map do |group_id|
+        group_encrypted_metadata = group_ids.to_h do |group_id|
           group_pubk = groups[group_id].pubk
           author_privk = user.privk
-          Crypto.encrypt_secret_metadata(group_pubk, author_privk, meta.to_h)
+          encrypted_meta = Crypto.encrypt_secret_metadata(
+            group_pubk, author_privk, meta.to_h
+          )
+          [group_id, encrypted_meta]
         end
         @store.secret_setmeta(secret.id, user.id, group_encrypted_metadata)
       end
@@ -139,7 +144,7 @@ module KStor
       # in: secret id, plaintext
       # needs: every group public key for this secret, user private key
       # out: nil
-      def secret_update_value(user, secret, plaintext)
+      def update_value(user, secret, plaintext)
         group_ids = @store.groups_for_secret(secret.id)
         group_ciphertexts = group_ids.map do |group_id|
           group_pubk = groups[group_id].pubk
@@ -156,7 +161,7 @@ module KStor
         @store.secret_delete(secret_id)
       end
 
-      def secret_unlock_format(secret)
+      def unlock_format(secret)
         args = secret.to_h
         args['value_author'] = users[secret.value_author_id].to_h
         args['metadata_author'] = users[secret.meta_author_id].to_h
@@ -165,6 +170,12 @@ module KStor
         args['groups'] = groups.values_at(*group_ids).map(&:to_h)
 
         args
+      end
+
+      def unlock_metadata(user, secret)
+        group_privk = user.keychain[secret.group_id].privk
+        author = users[secret.meta_author_id]
+        secret.unlock_metadata(author.pubk, group_privk)
       end
     end
   end

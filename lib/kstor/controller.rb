@@ -67,7 +67,7 @@ module KStor
 
       def controller_from_request_type(req)
         case req.type
-        when /^secret-(create|search|unlock|update(meta)?)$/
+        when /^secret-(create|search|unlock|update-(meta|value)?)$/
           @secret
         when /^group_create$/
           @user

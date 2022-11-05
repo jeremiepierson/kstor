@@ -114,8 +114,8 @@ module KStor
         o.array('-g', '--group_ids', 'Groups that can unlock the secret')
         o.string('-a', '--app', 'application of this secret')
         o.string('-d', '--database', 'database of this secret')
-        o.string('-l', '--login', 'login of yhis secret')
-        o.string('-s', '--server', 'server of this secret')
+        o.string('-l', '--login', 'login of this secret')
+        o.string('-S', '--server', 'server of this secret')
         o.string('-u', '--url', 'url for this secret')
       end
       reorganize_secret_meta_args(req)
@@ -135,6 +135,18 @@ module KStor
       request('secret-unlock') do |o|
         o.string('-s', '--secret-id', 'secret ID to unlock')
       end
+    end
+
+    def secret_update_meta
+      req = request('secret-update-meta') do |o|
+        o.string('-s', '--secret-id', 'secret ID to modify')
+        o.string('-a', '--app', 'new application of this secret')
+        o.string('-d', '--database', 'new database of this secret')
+        o.string('-l', '--login', 'new login of this secret')
+        o.string('-S', '--server', 'new server of this secret')
+        o.string('-u', '--url', 'new url for this secret')
+      end
+      reorganize_secret_meta_args(req)
     end
 
     def reorganize_secret_meta_args(req)
@@ -179,6 +191,7 @@ module KStor
       when 'secret-create' then :secret_create
       when 'secret-search' then :secret_search
       when 'secret-unlock' then :secret_unlock
+      when 'secret-update-meta' then :secret_update_meta
       when nil, '--help', '-h'
         base_usage
         exit 0
