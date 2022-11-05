@@ -1,0 +1,8 @@
+[Unit]
+Description=KStor listen socket
+
+[Socket]
+ListenStream=/run/kstor.socket
+
+[Install]
+WantedBy=sockets.target

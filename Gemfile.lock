@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    kstor (0.4.0)
+    kstor (0.4.1)
       journald-logger (~> 3.1)
       rbnacl (~> 7.1)
       sd_notify (~> 0.1)
