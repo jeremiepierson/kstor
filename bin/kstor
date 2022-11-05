@@ -19,12 +19,12 @@ module KStor
         'socket' => '/home/jpi/code/kstor/testworkdir/kstor.socket'
       }.freeze
 
-      def load_config
-        DEFAULT_CONFIG.merge(load_config_file)
+      def load_config(progr)
+        DEFAULT_CONFIG.merge(load_config_file(progr))
       end
 
-      def session_id_file
-        dir = File.join(xdg_runtime, @progr)
+      def session_id_file(progr)
+        dir = File.join(xdg_runtime, progr)
         FileUtils.mkdir_p(dir)
         file = File.join(dir, 'session-id')
         FileUtils.touch(file)
@@ -32,9 +32,9 @@ module KStor
         file
       end
 
-      def load_session_id
+      def load_session_id(progr)
         sid = nil
-        File.open(session_id_file) { |f| sid = f.read.chomp }
+        File.open(session_id_file(progr)) { |f| sid = f.read.chomp }
         sid = nil if sid.empty?
 
         sid
@@ -58,14 +58,14 @@ module KStor
         xdg_state
       end
 
-      def config_file
-        dir = File.join(xdg_config, @progr)
+      def config_file(progr)
+        dir = File.join(xdg_config, progr)
         FileUtils.mkdir_p(dir)
         File.join(dir, 'session-id')
       end
 
-      def load_config_file
-        data = File.read(config_file)
+      def load_config_file(progr)
+        data = File.read(config_file(progr))
         YAML.parse(data)
       rescue Errno::ENOENT
         {}
@@ -77,7 +77,7 @@ module KStor
   class Client
     def initialize
       @progr = File.basename($PROGRAM_NAME)
-      @config = ClientState.load_config
+      @config = ClientState.load_config(@progr)
       @user = user_from_argv
     end
 
@@ -89,7 +89,7 @@ module KStor
       puts format_response(resp)
       return unless resp.respond_to?(:session_id)
 
-      File.open(ClientState.session_id_file, 'w') do |f|
+      File.open(ClientState.session_id_file(@progr), 'w') do |f|
         f.puts(resp.session_id)
       end
     end
@@ -151,7 +151,7 @@ module KStor
 
     def handle_error!(resp)
       if resp.args['code'] == 'AUTH/BADSESSION'
-        FileUtils.rm(ClientState.session_id_file)
+        FileUtils.rm(ClientState.session_id_file(@progr))
         warn('session expired')
       else
         warn(resp.args['message'])
@@ -208,7 +208,7 @@ module KStor
     end
 
     def auth
-      session_id = ClientState.load_session_id
+      session_id = ClientState.load_session_id(@progr)
 
       if session_id
         { 'session_id' => session_id }
