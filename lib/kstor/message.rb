@@ -11,6 +11,9 @@ module KStor
   class RequestMissesAuthData < RuntimeError
   end
 
+  class UnparsableResponse < RuntimeError
+  end
+
   # A user request or response.
   class Message
     attr_reader :type
@@ -114,6 +117,8 @@ module KStor
       resp = new(data['type'], data['args'])
       resp.session_id = data['session_id']
       resp
+    rescue JSON::ParserError => e
+      raise UnparsableResponse, e.message
     end
 
     def error?

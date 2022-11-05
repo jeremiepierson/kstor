@@ -168,6 +168,9 @@ module KStor
 
       data, = socket.recvfrom(4096)
       Response.parse(data)
+    rescue UnparsableResponse
+      warn('server made a boo-boo; look at logs!')
+      exit(1)
     end
 
     def method_name(request_type)
@@ -219,7 +222,7 @@ module KStor
 
     def request(type, &block)
       hreq = {}
-      hreq['type'] = type.tr('-', '_')
+      hreq['type'] = type
       hreq['args'] = parse_opts(type) do |o|
         block.call(o)
       end

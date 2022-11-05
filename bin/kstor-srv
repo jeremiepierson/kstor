@@ -19,8 +19,10 @@ session_store = KStor::SessionStore.new(
   config.session_idle_timeout,
   config.session_life_timeout
 )
+request_handler = KStor::Controller::RequestHandler.new(store, session_store)
+
 server = KStor::Server.new(
-  controller: KStor::Controller.new(store, session_store),
+  controller: request_handler,
   socket_path: config.socket,
   nworkers: config.nworkers
 )
