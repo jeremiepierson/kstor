@@ -4,20 +4,19 @@ require 'kstor/store'
 require 'kstor/model'
 require 'kstor/crypto'
 require 'kstor/log'
+require 'kstor/controller/base'
 
 module KStor
   module Controller
     # Handle user and group related requests.
-    class User
-      def initialize(store)
-        @store = store
-      end
+    class User < Base
+      self.request_types = %w[
+        group_create
+      ].freeze
 
-      def handle_request(user, req)
-        case req.type
-        when /^group-create$/ then handle_group_create(user, req)
-        end
-      end
+      self.response_types = %w[
+        group_created
+      ].freeze
 
       private
 
@@ -29,7 +28,7 @@ module KStor
         group = group_create(user, req.args['name'])
         @groups = nil
         Response.new(
-          'group.created',
+          'group_created',
           'group_id' => group.id,
           'group_name' => group.name,
           'group_pubk' => group.pubk

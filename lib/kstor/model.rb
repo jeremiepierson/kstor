@@ -86,10 +86,7 @@ module KStor
 
       # Dump properties except pubk.
       def to_h
-        h = super
-        h.delete('pubk')
-
-        h
+        super.except('pubk')
       end
     end
 
@@ -154,9 +151,7 @@ module KStor
 
       # Dump properties except {#encrypted_privk}.
       def to_h
-        h = super
-        h.delete('encrypted_privk')
-        h
+        super.except('encrypted_privk')
       end
     end
 
@@ -283,9 +278,7 @@ module KStor
 
       # Dump properties except {#encrypted_privk} and {#pubk}.
       def to_h
-        h = super
-        h.delete('encrypted_privk')
-        h.delete('pubk')
+        h = super.except('encrypted_privk', 'pubk')
         h['keychain'] = keychain.transform_values(&:to_h) if keychain
 
         h
@@ -424,13 +417,9 @@ module KStor
       # Dump properties except {#ciphertext}, {#encrypted_metadata},
       # {#value_author_id} and {#meta_author_id}.
       def to_h
-        h = super
-        h.delete('ciphertext')
-        h.delete('encrypted_metadata')
-        h.delete('value_author_id')
-        h.delete('meta_author_id')
-
-        h
+        super.except(
+          *%w[ciphertext encrypted_metadata value_author_id meta_author_id]
+        )
       end
     end
   end

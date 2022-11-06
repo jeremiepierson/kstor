@@ -3,6 +3,7 @@
 require 'kstor/store'
 require 'kstor/model'
 require 'kstor/crypto'
+require 'kstor/controller/base'
 
 module KStor
   class SecretNotFound < Error
@@ -12,71 +13,63 @@ module KStor
 
   module Controller
     # Handle secret-related requests.
-    class Secret
-      def initialize(store)
-        @store = store
-      end
+    class Secret < Base
+      self.request_types = %w[
+        secret_create
+        secret_search
+        secret_unlock
+        secret_update_meta
+        secret_update_value
+        secret_delete
+      ].freeze
 
-      def handle_request(user, req)
-        case req.type
-        when 'secret-create' then handle_create(user, req)
-        when 'secret-search' then handle_search(user, req)
-        when 'secret-unlock' then handle_unlock(user, req)
-        when 'secret-update-meta' then handle_update_meta(user, req)
-        when 'secret-update-value' then handle_update_value(user, req)
-        when 'secret-delete' then handle_delete(user, req)
-        else
-          raise Error.for_code('REQ/UNKNOWN', req.type)
-        end
-      end
+      self.response_types = %w[
+        secret_list
+        secret_value
+        secret_updated
+        secret_deleted
+      ].freeze
 
       private
 
-      def handle_create(user, req)
+      def handle_secret_create(user, req)
         meta = Model::SecretMeta.new(**req.args['meta'])
         secret_groups = req.args['group_ids'].map { |gid| groups[gid.to_i] }
         secret_id = create(
           user, req.args['plaintext'], secret_groups, meta
         )
-        Response.new('secret.created', 'secret_id' => secret_id)
+        Response.new('secret_created', 'secret_id' => secret_id)
       end
 
-      def handle_search(user, req)
+      def handle_secret_search(user, req)
         secrets = search(user, Model::SecretMeta.new(**req.args))
-        args = secrets.map do |s|
-          h = s.to_h
-          h.delete('group_id')
-          h
-        end
-        Response.new(
-          'secret.list',
-          'secrets' => args
-        )
+        args = secrets.map { |s| s.to_h.except('group_id') }
+        Response.new('secret_list', 'secrets' => args)
       end
 
-      def handle_unlock(user, req)
+      def handle_secret_unlock(user, req)
         secret_id = req.args['secret_id']
         secret = unlock(user, secret_id)
         args = unlock_format(secret)
 
-        Response.new('secret.value', **args)
+        Response.new('secret_value', **args)
       end
 
-      def handle_update_meta(user, req)
+      def handle_secret_update_meta(user, req)
         meta = Model::SecretMeta.new(req.args['meta'])
         Log.debug("secret#handle_update_meta: meta=#{meta.to_h.inspect}")
         update_meta(user, req.args['secret_id'], meta)
-        Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
+        Response.new('secret_updated', 'secret_id' => req.args['secret_id'])
       end
 
-      def handle_update_value(user, req)
+      def handle_secret_update_value(user, req)
         update_value(user, req.args['secret_id'], req.args['plaintext'])
-        Response.new('secret.updated', 'secret_id' => req.args['secret_id'])
+        Response.new('secret_updated', 'secret_id' => req.args['secret_id'])
       end
 
-      def handle_delete(user, req)
+      def handle_secret_delete(user, req)
         delete(user, req.args['secret_id'])
-        Response.new('secret.deleted', 'secret_id' => req.args['secret_id'])
+        Response.new('secret_deleted', 'secret_id' => req.args['secret_id'])
       end
 
       def users
@@ -106,7 +99,7 @@ module KStor
       # needs: private key of one common group between user and secret
       # out: plaintext
       def unlock(user, secret_id)
-        secret = @store.secret_fetch(secret_id, user.id)
+        secret = secret_fetch(secret_id, user.id)
         group_privk = user.keychain[secret.group_id].privk
 
         value_author = users[secret.value_author_id]
@@ -137,7 +130,7 @@ module KStor
       # needs: every group public key for this secret, user private key
       # out: nil
       def update_meta(user, secret_id, partial_meta)
-        secret = @store.secret_fetch(secret_id, user.id)
+        secret = secret_fetch(secret_id, user.id)
         unlock_metadata(user, secret)
         meta = secret.metadata.merge(partial_meta)
         group_ids = @store.groups_for_secret(secret.id)
@@ -156,7 +149,7 @@ module KStor
       # needs: every group public key for this secret, user private key
       # out: nil
       def update_value(user, secret_id, plaintext)
-        secret = @store.secret_fetch(secret_id, user.id)
+        secret = secret_fetch(secret_id, user.id)
         group_ids = @store.groups_for_secret(secret.id)
         group_ciphertexts = group_ids.to_h do |group_id|
           group_pubk = groups[group_id].pubk
@@ -174,7 +167,7 @@ module KStor
       # out: nil
       def delete(user, secret_id)
         # Check if user can see this secret:
-        secret = @store.secret_fetch(secret_id, user.id)
+        secret = secret_fetch(secret_id, user.id)
         raise Error.for_code('SECRET/NOTFOUND', secret_id) if secret.nil?
 
         @store.secret_delete(secret_id)
@@ -195,6 +188,13 @@ module KStor
         group_privk = user.keychain[secret.group_id].privk
         author = users[secret.meta_author_id]
         secret.unlock_metadata(author.pubk, group_privk)
+      end
+
+      def secret_fetch(secret_id, user_id)
+        secret = @store.secret_fetch(secret_id, user_id)
+        raise Error.for_code('SECRET/NOTFOUND', secret_id) if secret.nil?
+
+        secret
       end
     end
   end

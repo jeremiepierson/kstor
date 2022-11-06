@@ -74,13 +74,13 @@ module KStor
   # Sub-commands that can be invoked from the command-line.
   module ClientSubCommands
     def group_create
-      request('group-create') do |o|
+      request('group_create') do |o|
         o.string('-n', '--name', 'Group name')
       end
     end
 
     def secret_create
-      req = request('secret-create') do |o|
+      req = request('secret_create') do |o|
         o.string('-p', '--plaintext', 'Value of the secret')
         o.array('-g', '--group_ids', 'Groups that can unlock the secret')
         o.string('-a', '--app', 'application of this secret')
@@ -93,7 +93,7 @@ module KStor
     end
 
     def secret_search
-      request('secret-search') do |o|
+      request('secret_search') do |o|
         o.string('-a', '--app', 'secrets for this application')
         o.string('-d', '--database', 'secrets for this database')
         o.string('-l', '--login', 'secrets for this login')
@@ -103,13 +103,13 @@ module KStor
     end
 
     def secret_unlock
-      request('secret-unlock') do |o|
+      request('secret_unlock') do |o|
         o.string('-s', '--secret-id', 'secret ID to unlock')
       end
     end
 
     def secret_update_meta
-      req = request('secret-update-meta') do |o|
+      req = request('secret_update_meta') do |o|
         o.string('-s', '--secret-id', 'secret ID to modify')
         o.string('-a', '--app', 'new application of this secret')
         o.string('-d', '--database', 'new database of this secret')
@@ -121,14 +121,14 @@ module KStor
     end
 
     def secret_update_value
-      request('secret-update-value') do |o|
+      request('secret_update_value') do |o|
         o.string('-s', '--secret-id', 'secret ID to modify')
         o.string('-p', '--plaintext', 'new plaintext value')
       end
     end
 
     def secret_delete
-      request('secret-delete') do |o|
+      request('secret_delete') do |o|
         o.string('-s', '--secret-id', 'secret ID to delete')
       end
     end
@@ -201,28 +201,27 @@ module KStor
       exit(1)
     end
 
-    REQUEST_METHODS = {
-      'group-create' => :group_create,
-      'secret-create' => :secret_create,
-      'secret-search' => :secret_search,
-      'secret-unlock' => :secret_unlock,
-      'secret-update-meta' => :secret_update_meta,
-      'secret-update-value' => :secret_update_value,
-      'secret-delete' => :secret_delete
-    }.freeze
+    REQUEST_TYPES = %w[
+      group_create
+      secret_create
+      secret_search
+      secret_unlock
+      secret_update_meta
+      secret_update_value
+      secret_delete
+    ].freeze
 
     def method_name(request_type)
       if request_type.nil?
         base_usage
         exit 0
       end
-      meth = REQUEST_METHODS[request_type]
-      if meth.nil?
+      unless REQUEST_TYPES.include?(request_type)
         warn("Unknown request type #{request_type.inspect}")
         base_usage
         exit 1
       end
-      meth
+      request_type.to_sym
     end
 
     def user_from_argv
