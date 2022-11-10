@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.authors = ['Jérémie Pierson']
   s.email = 'jeremie.pierson@arlol.net'
   s.license = 'GPL-3.0-or-later'
-  s.homepage = 'https://github.com/jeremiepierson/kstor'
+  s.homepage = 'https://git.arlol.net/jpi/kstor'
   s.files = Dir['lib/**/*']
   s.files += ['bin/kstor-srv']
   s.files += ['bin/kstor']
