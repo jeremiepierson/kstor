@@ -13,4 +13,8 @@ require 'rubocop/rake_task'
 
 RuboCop::RakeTask.new
 
+require 'yard'
+
+YARD::Rake::YardocTask.new
+
 task default: %i[test rubocop]
