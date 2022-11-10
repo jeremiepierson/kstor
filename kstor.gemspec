@@ -7,7 +7,8 @@ require 'kstor/version'
 Gem::Specification.new do |s|
   s.required_ruby_version = '>= 3.1.0'
   s.metadata = {
-    'rubygems_mfa_required' => 'true'
+    'rubygems_mfa_required' => 'true',
+    'allowed_push_host' => 'https://git.arlol.net/api/packages/jpi/rubygems'
   }
 
   s.name = 'kstor'
@@ -23,6 +24,7 @@ Gem::Specification.new do |s|
   s.email = 'jeremie.pierson@arlol.net'
   s.license = 'GPL-3.0-or-later'
   s.homepage = 'https://git.arlol.net/jpi/kstor'
+
   s.files = Dir['lib/**/*']
   s.files += ['bin/kstor-srv']
   s.files += ['bin/kstor']
