@@ -15,9 +15,6 @@ module KStor
 
     # Create a new server.
     #
-    # FIXME: path is currently ignored, add fallback when systemd is not
-    #        available.
-    #
     # @param socket_path [String] path to listening socket
     # @param nworkers [Integer] number of worker threads
     def initialize(socket_path:, nworkers:)
@@ -32,7 +29,7 @@ module KStor
     # Send interrupt signal to cleanly stop.
     def start
       start_workers
-      server = Systemd.socket
+      server = server_socket
       Systemd.service_ready
       loop do
         maintain_workers
@@ -51,6 +48,13 @@ module KStor
     end
 
     private
+
+    def server_socket
+      s = Systemd.socket
+      return s if s
+
+      UNIXServer.new(@path)
+    end
 
     def worker_run
       while (client = @client_queue.deq)

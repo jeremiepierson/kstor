@@ -3,7 +3,7 @@
 
 require 'kstor'
 
-KStor::Log.reporting_level = Journald::LOG_DEBUG
+KStor::Log.reporting_level = KStor::Log::DEBUG
 
 config = KStor::Config.load(ARGV.shift)
 
