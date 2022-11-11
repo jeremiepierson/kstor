@@ -21,17 +21,13 @@ module KStor
       private
 
       def handle_group_create(user, req)
-        unless req.args['name']
-          raise Error.for_code('REQ/MISSINGARG', 'name', req.type)
-        end
+        raise Error.for_code('REQ/MISSINGARG', 'name', req.type) unless req.name
 
-        group = group_create(user, req.args['name'])
-        @groups = nil
-        Response.new(
-          'group_created',
-          'group_id' => group.id,
-          'group_name' => group.name,
-          'group_pubk' => group.pubk
+        group = group_create(user, req.name)
+        Message::GroupCreated.new(
+          group_id: group.id,
+          group_name: group.name,
+          group_pubk: group.pubk
         )
       end
 

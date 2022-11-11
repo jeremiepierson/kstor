@@ -2,9 +2,6 @@
 
 require 'json'
 
-require 'kstor/message/request'
-require 'kstor/message/response'
-
 module KStor
   module Message
     # Internal exception when a request is received with neither a session ID
@@ -20,3 +17,30 @@ module KStor
     end
   end
 end
+
+require 'kstor/message/request'
+require 'kstor/message/response'
+
+require 'kstor/message/error'
+
+require 'kstor/message/ping'
+require 'kstor/message/pong'
+
+require 'kstor/message/group_create'
+require 'kstor/message/group_created'
+
+require 'kstor/message/secret_create'
+require 'kstor/message/secret_created'
+
+require 'kstor/message/secret_delete'
+require 'kstor/message/secret_deleted'
+
+require 'kstor/message/secret_search'
+require 'kstor/message/secret_list'
+
+require 'kstor/message/secret_unlock'
+require 'kstor/message/secret_value'
+
+require 'kstor/message/secret_update_meta'
+require 'kstor/message/secret_update_value'
+require 'kstor/message/secret_updated'

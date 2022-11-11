@@ -24,6 +24,7 @@ module KStor
       ].freeze
 
       self.response_types = %w[
+        secret_created
         secret_list
         secret_value
         secret_updated
@@ -33,51 +34,44 @@ module KStor
       private
 
       def handle_secret_create(user, req)
-        meta = Model::SecretMeta.new(**req.args['meta'])
-        secret_groups = req.args['group_ids'].map do |gid|
+        meta = Model::SecretMeta.new(**req.meta)
+        secret_groups = req.group_ids.map do |gid|
           @store.groups[gid.to_i]
         end
         secret_id = create(
-          user, req.args['plaintext'], secret_groups, meta
+          user, req.plaintext, secret_groups, meta
         )
-        Message::Response.new('secret_created', { 'secret_id' => secret_id })
+        Message::SecretCreated.new(secret_id:)
       end
 
       def handle_secret_search(user, req)
-        secrets = search(user, Model::SecretMeta.new(**req.args))
-        args = secrets.map { |s| s.to_h.except('group_id') }
-        Message::Response.new('secret_list', { 'secrets' => args })
+        secrets = search(user, Model::SecretMeta.new(**req.meta))
+        response_args = secrets.map { |s| s.to_h.except('group_id') }
+        Message::SecretList.new(secrets: response_args)
       end
 
       def handle_secret_unlock(user, req)
-        secret_id = req.args['secret_id']
-        secret = unlock(user, secret_id)
+        secret = unlock(user, req.secret_id)
         args = unlock_format(secret)
 
-        Message::Response.new('secret_value', args)
+        Message::SecretValue.new(**args)
       end
 
       def handle_secret_update_meta(user, req)
-        meta = Model::SecretMeta.new(req.args['meta'])
+        meta = Model::SecretMeta.new(req.meta)
         Log.debug("secret#handle_update_meta: meta=#{meta.to_h.inspect}")
-        update_meta(user, req.args['secret_id'], meta)
-        Message::Response.new(
-          'secret_updated', { 'secret_id' => req.args['secret_id'] }
-        )
+        update_meta(user, req.secret_id, meta)
+        Message::SecretUpdated.new(secret_id: req.secret_id)
       end
 
       def handle_secret_update_value(user, req)
-        update_value(user, req.args['secret_id'], req.args['plaintext'])
-        Message::Response.new(
-          'secret_updated', { 'secret_id' => req.args['secret_id'] }
-        )
+        update_value(user, req.secret_id, req.plaintext)
+        Message::SecretUpdated.new(secret_id: req.secret_id)
       end
 
       def handle_secret_delete(user, req)
-        delete(user, req.args['secret_id'])
-        Message::Response.new(
-          'secret_deleted', { 'secret_id' => req.args['secret_id'] }
-        )
+        delete(user, req.secret_id)
+        Message::SecretDeleted.new(secret_id: req.secret_id)
       end
 
       def users
@@ -189,7 +183,7 @@ module KStor
         group_ids = @store.groups_for_secret(secret.id)
         args['groups'] = @store.groups.values_at(*group_ids).map(&:to_h)
 
-        args
+        args.transform_keys(&:to_sym)
       end
 
       def unlock_metadata(user, secret)

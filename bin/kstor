@@ -85,7 +85,7 @@ module KStor
 
     # Create a secret.
     def secret_create
-      req = request('secret_create') do |o|
+      request_with_meta('secret_create') do |o|
         o.string('-p', '--plaintext', 'Value of the secret')
         o.array('-g', '--group_ids', 'Groups that can unlock the secret')
         o.string('-a', '--app', 'application of this secret')
@@ -94,12 +94,11 @@ module KStor
         o.string('-S', '--server', 'server of this secret')
         o.string('-u', '--url', 'url for this secret')
       end
-      reorganize_secret_meta_args(req)
     end
 
     # Return a list of matching secrets.
     def secret_search
-      request('secret_search') do |o|
+      request_with_meta('secret_search') do |o|
         o.string('-a', '--app', 'secrets for this application')
         o.string('-d', '--database', 'secrets for this database')
         o.string('-l', '--login', 'secrets for this login')
@@ -117,7 +116,7 @@ module KStor
 
     # Update secret metadata
     def secret_update_meta
-      req = request('secret_update_meta') do |o|
+      request_with_meta('secret_update_meta') do |o|
         o.string('-s', '--secret-id', 'secret ID to modify')
         o.string('-a', '--app', 'new application of this secret')
         o.string('-d', '--database', 'new database of this secret')
@@ -125,7 +124,6 @@ module KStor
         o.string('-S', '--server', 'new server of this secret')
         o.string('-u', '--url', 'new url for this secret')
       end
-      reorganize_secret_meta_args(req)
     end
 
     # Update secret value
@@ -157,7 +155,7 @@ module KStor
 
     # Read command-line args, send request to server and display results..
     def run
-      request_type = ARGV.shift
+      request_type = ARGV.shift.to_sym
       resp = send_request(request_type)
       handle_error!(resp) if resp.error?
 
@@ -207,34 +205,23 @@ module KStor
       socket.send(req.serialize, 0)
 
       data, = socket.recvfrom(4096)
-      Message::Response.parse(data)
+      Message::Base.parse(data)
     rescue Message::UnparsableResponse
-      warn('server speaks funny; look at logs!')
+      warn('Invalid response from server; look at logs!')
       exit(1)
     end
-
-    # All request types that we can send.
-    REQUEST_TYPES = %w[
-      group_create
-      secret_create
-      secret_search
-      secret_unlock
-      secret_update_meta
-      secret_update_value
-      secret_delete
-    ].freeze
 
     def method_name(request_type)
       if request_type.nil?
         base_usage
         exit 0
       end
-      unless REQUEST_TYPES.include?(request_type)
+      unless KStor::Message::Base.type?(request_type)
         warn("Unknown request type #{request_type.inspect}")
         base_usage
         exit 1
       end
-      request_type.to_sym
+      request_type
     end
 
     def user_from_argv
@@ -268,9 +255,22 @@ module KStor
       end
     end
 
+    def request_with_meta(type, &block)
+      args = parse_opts(type) { |o| block.call(o) }
+      args[:meta] = {
+        'app' => args.delete(:app),
+        'database' => args.delete(:database),
+        'login' => args.delete(:login),
+        'server' => args.delete(:server),
+        'url' => args.delete(:url)
+      }
+      args[:meta].compact!
+      KStor::Message::Base.for_type(type, args, **auth)
+    end
+
     def request(type, &block)
       args = parse_opts(type) { |o| block.call(o) }
-      KStor::Message::Request.new(type, args, **auth)
+      KStor::Message::Base.for_type(type, args, **auth)
     end
 
     def parse_opts(request_type)

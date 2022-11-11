@@ -5,14 +5,16 @@ require 'kstor/message/base'
 module KStor
   module Message
     # A client request.
+    #
+    # @abstract
     class Request < Base
       attr_reader :login
       attr_reader :password
       attr_reader :session_id
 
       # Create a new request.
-      def initialize(type, args, **opts)
-        super(type, args)
+      def initialize(args, **opts)
+        super(self.class.type, args)
         if opts.key?(:login) && opts.key?(:password)
           @login = opts[:login]
           @password = opts[:password]
@@ -65,19 +67,10 @@ module KStor
       # @return [KStor::Message::Request] a request
       # @raise [KStor::RequestMissesAuthData]
       def self.parse(str)
-        data = JSON.parse(str)
-        if data.key?('login') && data.key?('password')
-          new(
-            data['type'], data['args'],
-            login: data['login'], password: data['password']
-          )
-        elsif data.key?('session_id')
-          new(
-            data['type'], data['args'], session_id: data['session_id']
-          )
-        else
-          raise RequestMissesAuthData
-        end
+        req = super
+        return req if req.login? || req.session?
+
+        raise RequestMissesAuthData
       end
 
       private

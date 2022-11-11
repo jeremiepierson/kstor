@@ -11,11 +11,10 @@ module KStor
 
       # Create a new response.
       #
-      # @param type [String] message type
       # @param args [Hash] message arguments
       # @return [KStor::Message::Base] new response
-      def initialize(type, args, session_id: nil)
-        super(type, args)
+      def initialize(args, session_id: nil)
+        super(self.class.type, args)
         @session_id = session_id
       end
 
