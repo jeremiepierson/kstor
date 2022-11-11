@@ -16,9 +16,11 @@ module KStor
     end
 
     class << self
+      # @!macro [new] dsl_storecache_property
+      #   @!attribute $1
+      #     @return returns cached list of $1
+
       # Declare a cached list of values.
-      #
-      # FIXME: define YARD macro to document created methods.
       #
       # @param name [Symbol] name of list
       def property(name)
@@ -40,7 +42,9 @@ module KStor
       end
     end
 
+    # @!macro dsl_storecache_property
     property :users
+    # @!macro dsl_storecache_property
     property :groups
   end
 
