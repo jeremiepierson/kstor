@@ -24,7 +24,7 @@ module KStor
       #
       # Request may either contain a login/password, or a session ID.
       #
-      # @param req [KStor::LoginRequest, KStor::SessionRequest] client request
+      # @param req [KStor::Request] client request
       # @return [KStor::Model::User] client user
       # @raise [KStor::InvalidSession] if session ID is invalid
       # @raise [KStor::UserNotAllowed] if user is not allowed

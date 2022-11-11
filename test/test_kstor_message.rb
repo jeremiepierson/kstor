@@ -26,7 +26,7 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_login_request
-    req = KStor::LoginRequest.new('bob', 'secret', 'ping', {})
+    req = KStor::Request.new('ping', {}, login: 'bob', password: 'secret')
 
     assert_equal('bob', req.login)
     assert_equal('secret', req.password)
@@ -35,7 +35,7 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_session_request
-    req = KStor::SessionRequest.new('sid', 'ping', {})
+    req = KStor::Request.new('ping', {}, session_id: 'sid')
 
     assert_equal('sid', req.session_id)
     assert_equal('sid', req.to_h['session_id'])
@@ -43,25 +43,11 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_parse_request_roundtrip
-    lreq = KStor::LoginRequest.new('bob', 'secret', 'ping', {})
-    sreq = KStor::SessionRequest.new('sid', 'ping', {})
+    lreq = KStor::Request.new('ping', {}, login: 'bob', password: 'secret')
+    sreq = KStor::Request.new('ping', {}, session_id: 'sid')
 
     assert_equal(lreq.to_h, KStor::Request.parse(lreq.serialize).to_h)
     assert_equal(sreq.to_h, KStor::Request.parse(sreq.serialize).to_h)
-  end
-
-  def test_parse_request_classes
-    lreq = KStor::LoginRequest.new('bob', 'secret', 'ping', {})
-    sreq = KStor::SessionRequest.new('sid', 'ping', {})
-
-    assert_equal(
-      KStor::LoginRequest,
-      KStor::Request.parse(lreq.serialize).class
-    )
-    assert_equal(
-      KStor::SessionRequest,
-      KStor::Request.parse(sreq.serialize).class
-    )
   end
 
   def test_parse_request_raises
@@ -73,8 +59,8 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_inspect_password_sid
-    lreq = KStor::LoginRequest.new('bob', 'secret', 'ping', {})
-    sreq = KStor::SessionRequest.new('secret', 'ping', {})
+    lreq = KStor::Request.new('ping', {}, login: 'bob', password: 'secret')
+    sreq = KStor::Request.new('ping', {}, session_id: 'sid')
 
     refute_match(/secret/, lreq.inspect)
     refute_match(/secret/, sreq.inspect)

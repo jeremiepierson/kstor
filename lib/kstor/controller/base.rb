@@ -35,7 +35,7 @@ module KStor
       # Handle client request.
       #
       # @param user [KStor::Model::User] user making this request
-      # @param req [KStor::LoginRequest, KStor::SessionRequest] client request
+      # @param req [KStor::Request] client request
       def handle_request(user, req)
         unless @request_handlers.key?(req.type)
           raise Error.for_code('REQ/UNKNOWN', req.type)

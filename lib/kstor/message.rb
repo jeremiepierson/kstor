@@ -48,52 +48,88 @@ module KStor
 
   # A client request.
   class Request < Message
-    # Parse a user request, freshly arrived from the network.
-    #
-    # @param str [String] serialized request
-    # @return [LoginRequest,SessionRequest] a request
-    # @raise [KStor::RequestMissesAuthData]
-    def self.parse(str)
-      data = JSON.parse(str)
-      if data.key?('login') && data.key?('password')
-        LoginRequest.new(
-          data['login'], data['password'],
-          data['type'], data['args']
-        )
-      elsif data.key?('session_id')
-        SessionRequest.new(
-          data['session_id'], data['type'], data['args']
-        )
+    attr_reader :login
+    attr_reader :password
+    attr_reader :session_id
+
+    # Create a new request.
+    def initialize(type, args, **opts)
+      super(type, args)
+      if opts.key?(:login) && opts.key?(:password)
+        @login = opts[:login]
+        @password = opts[:password]
+      elsif opts.key?(:session_id)
+        @session_id = opts[:session_id]
       else
         raise RequestMissesAuthData
       end
     end
-  end
 
-  # A user authentication request.
-  #
-  # Can be of any type.
-  class LoginRequest < Request
-    attr_reader :login
-    attr_reader :password
+    # True if it's a login/password request.
+    def login?
+      !(@login.nil? || @password.nil?)
+    end
 
-    # Create an authenticated request.
+    # True if it's a session request
+    def session?
+      !@session_id.nil?
+    end
+
+    # Convert request to Hash.
     #
-    # @param login [String] login of user
-    # @param password [String] password of user
-    # @param type [String] type of request
-    # @param args [Hash] arguments of request
-    # @return [KStor::LoginRequest] new request
-    def initialize(login, password, type, args)
-      @login = login
-      @password = password
-      super(type, args)
+    # Used for JSON serialization.
+    #
+    # @return [Hash] this request as a Hash.
+    def to_h
+      if login?
+        super.merge('login' => @login, 'password' => @password)
+      elsif session?
+        super.merge('session_id' => @session_id)
+      else
+        raise RequestMissesAuthData
+      end
     end
 
     # Hide sensitive information when debugging.
     def inspect
+      if login?
+        inspect_login_request
+      elsif session?
+        inspect_session_request
+      else
+        raise RequestMissesAuthData
+      end
+    end
+
+    # Parse a user request, freshly arrived from the network.
+    #
+    # @param str [String] serialized request
+    # @return [KStor::Request] a request
+    # @raise [KStor::RequestMissesAuthData]
+    def self.parse(str)
+      data = JSON.parse(str)
+      req = Request.new(data['type'], data['args'])
+      if data.key?('login') && data.key?('password')
+        new(
+          data['type'], data['args'],
+          login: data['login'], password: data['password']
+        )
+      elsif data.key?('session_id')
+        new(
+          data['type'], data['args'], session_id: data['session_id']
+        )
+      else
+        raise RequestMissesAuthData
+      end
+
+      req
+    end
+
+    private
+
+    def inspect_login_request
       fmt = [
-        '#<KStor::LoginRequest:%<id>x',
+        '#<KStor::Request:%<id>x',
         '@login=%<login>s',
         '@password="******"',
         '@args=%<args>s>'
@@ -101,50 +137,13 @@ module KStor
       format(fmt, id: object_id, login: @login.inspect, args: @args.inspect)
     end
 
-    # Convert request to Hash.
-    #
-    # Used for JSON serialization.
-    #
-    # @return [Hash] this request as a Hash.
-    def to_h
-      super.merge('login' => @login, 'password' => @password)
-    end
-  end
-
-  # A user request with a session ID.
-  #
-  # Can be of any type.
-  class SessionRequest < Request
-    attr_reader :session_id
-
-    # Create a new request.
-    #
-    # @param session_id [String] session ID
-    # @param type [String] type of request
-    # @param args [Hash] arguments of request
-    # @return [KStor::SessionRequest] new request
-    def initialize(session_id, type, args)
-      @session_id = session_id
-      super(type, args)
-    end
-
-    # Hide sensitive information when debugging.
-    def inspect
+    def inspect_session_request
       fmt = [
-        '#<KStor::SessionRequest:%<id>x',
+        '#<KStor::Request:%<id>x',
         '@session_id=******',
         '@args=%<args>s>'
       ].join(' ')
       format(fmt, id: object_id, args: @args.inspect)
-    end
-
-    # Convert request to Hash.
-    #
-    # Used for JSON serialization.
-    #
-    # @return [Hash] this request as a Hash.
-    def to_h
-      super.merge('session_id' => @session_id)
     end
   end
 

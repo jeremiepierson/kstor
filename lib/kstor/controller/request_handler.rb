@@ -78,7 +78,7 @@ module KStor
 
       # Serve a client.
       #
-      # @param req [KStor::LoginRequest, KStor::SessionRequest] client request
+      # @param req [KStor::Request] client request
       # @return [KStor::Response] server response
       def handle_request(req)
         user, sid = @auth.authenticate(req)
