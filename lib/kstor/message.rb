@@ -108,7 +108,6 @@ module KStor
     # @raise [KStor::RequestMissesAuthData]
     def self.parse(str)
       data = JSON.parse(str)
-      req = Request.new(data['type'], data['args'])
       if data.key?('login') && data.key?('password')
         new(
           data['type'], data['args'],
@@ -121,8 +120,6 @@ module KStor
       else
         raise RequestMissesAuthData
       end
-
-      req
     end
 
     private
@@ -130,20 +127,26 @@ module KStor
     def inspect_login_request
       fmt = [
         '#<KStor::Request:%<id>x',
+        '@type=%<type>s',
         '@login=%<login>s',
         '@password="******"',
         '@args=%<args>s>'
       ].join(' ')
-      format(fmt, id: object_id, login: @login.inspect, args: @args.inspect)
+      format(
+        fmt,
+        id: object_id, type: @type.inspect, login: @login.inspect,
+        args: @args.inspect
+      )
     end
 
     def inspect_session_request
       fmt = [
         '#<KStor::Request:%<id>x',
+        '@type=%<type>s',
         '@session_id=******',
         '@args=%<args>s>'
       ].join(' ')
-      format(fmt, id: object_id, args: @args.inspect)
+      format(fmt, id: object_id, type: @type, args: @args.inspect)
     end
   end
 

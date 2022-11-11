@@ -67,7 +67,7 @@ module KStor
     def setup_thread_connection(key)
       return if Thread.current[key]
 
-      Log.info(
+      Log.debug(
         "sqlite: initializing connection in thread #{Thread.current.name}"
       )
       Thread.current[key] = connect(@file_path)

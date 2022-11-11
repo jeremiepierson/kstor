@@ -50,7 +50,7 @@ module KStor
 
       # Load user from database and decrypt private key and keychain.
       def unlock_user(req)
-        if req.respond_to?(:session_id)
+        if req.session?
           session_id = req.session_id
           user, secret_key = load_session(session_id)
         else

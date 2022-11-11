@@ -39,7 +39,6 @@ module KStor
       # @return [SecretKey] secret key and KDF parameters
       def key_derive(passphrase, params = nil)
         params ||= key_derive_params_generate
-        Log.debug("crypto: kdf params = #{params.to_hash}")
         data = RbNaCl::PasswordHash.argon2(
           passphrase, params['salt'],
           params['opslimit'], params['memlimit'], params['digest_size']
