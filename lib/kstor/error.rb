@@ -72,7 +72,7 @@ module KStor
     # @return [KStor::Message::Response] error response
     def response
       Message::Response.new(
-        'error', 'code' => self.class.code, 'message' => message
+        'error', { 'code' => self.class.code, 'message' => message }
       )
     end
   end

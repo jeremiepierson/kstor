@@ -73,7 +73,7 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_response
-    resp = KStor::Message::Response.new('pong', 'payload' => 'blah')
+    resp = KStor::Message::Response.new('pong', { 'payload' => 'blah' })
     resp.session_id = 'secret'
 
     assert_equal('secret', resp.session_id)
@@ -87,7 +87,7 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_response_error
-    resp = KStor::Message::Response.new('pong', 'payload' => 'blah')
+    resp = KStor::Message::Response.new('pong', { 'payload' => 'blah' })
     err = KStor::Message::Response.new('error', {})
 
     refute_predicate(resp, :error?)
