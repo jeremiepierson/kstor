@@ -11,6 +11,13 @@ module KStor
   class SocketServer
     GRACEFUL_TIMEOUT = 10
 
+    # Create a new server.
+    #
+    # FIXME: path is currently ignored, add fallback when systemd is not
+    #        available.
+    #
+    # @param socket_path [String] path to listening socket
+    # @param nworkers [Integer] number of worker threads
     def initialize(socket_path:, nworkers:)
       @path = socket_path
       @nworkers = nworkers
@@ -18,6 +25,9 @@ module KStor
       @workers = []
     end
 
+    # Start serving clients.
+    #
+    # Send interrupt signal to cleanly stop.
     def start
       start_workers
       server = Systemd.socket
@@ -31,6 +41,8 @@ module KStor
       Log.info('socket_server: stopped.')
     end
 
+    # Do some work for a client and write a response.
+    # @abstract
     def work(client)
       # Abstract method.
       client.close

@@ -8,13 +8,28 @@ require 'kstor/model'
 
 module KStor
   module Controller
-    # Handle user authentication and sessions.
+    # Specialized controller for user authentication and sessions.
     class Authentication
+      # Create new auth controller.
+      #
+      # @param store [KStor::Store] data store where users are
+      # @param session_store [KStor::SessionStore] where user sessions are
+      # @return [KStor::Controller::Authentication] new auth controller
       def initialize(store, session_store)
         @store = store
         @sessions = session_store
       end
 
+      # Authenticate request user.
+      #
+      # Request may either contain a login/password, or a session ID.
+      #
+      # @param req [KStor::LoginRequest, KStor::SessionRequest] client request
+      # @return [KStor::Model::User] client user
+      # @raise [KStor::InvalidSession] if session ID is invalid
+      # @raise [KStor::UserNotAllowed] if user is not allowed
+      # @raise [KStor::MissingLoginPassword] if database is empty and request
+      #   only contains a session ID
       def authenticate(req)
         if @store.users?
           unlock_user(req)
@@ -23,11 +38,17 @@ module KStor
         end
       end
 
-      # return true if login is allowed to access the database.
+      # Check if user is allowed to access the application.
+      #
+      # @param user [KStor::Model::User] client user
+      # @return [Boolean] true if login is allowed to access application data.
       def allowed?(user)
         user.status == 'new' || user.status == 'active'
       end
 
+      private
+
+      # Load user from database and decrypt private key and keychain.
       def unlock_user(req)
         if req.respond_to?(:session_id)
           session_id = req.session_id

@@ -15,11 +15,24 @@ module KStor
 
   # Listen for clients and respond to their requests.
   class Server < SocketServer
+    # Create a new server object.
+    #
+    # @param controller [KStor::Controller::RequestHandler] client request
+    #   handler
+    # @param args [Hash] parameters to apss to parent class
+    #   {KStor::SocketServer}
+    # @return [KStor::Server] new KStor server.
     def initialize(controller:, **args)
       @controller = controller
       super(**args)
     end
 
+    # Implement {KStor::SocketServer#work} to actually serve clients.
+    #
+    # This method must read client request, write a response and close the
+    # socket.
+    #
+    # @param client [Socket] channel of communication to a client
     def work(client)
       client_data, = client.recvfrom(4096)
       Log.debug("server: read #{client_data.bytesize} bytes from client")

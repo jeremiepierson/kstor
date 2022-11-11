@@ -11,6 +11,13 @@ module KStor
     attr_reader :created_at
     attr_reader :updated_at
 
+    # Create a new user session.
+    #
+    # @param sid [String] Session ID
+    # @param user [KStor::Model::User] user owning the session
+    # @param secret_key [KStor::Crypto::SecretKey] user secret key, derived
+    #   from password
+    # @return [KStor::Session] new session
     def initialize(sid, user, secret_key)
       @id = sid
       @user = user
@@ -19,21 +26,37 @@ module KStor
       @updated_at = Time.now
     end
 
+    # Update access time, for idle sessions weeding.
+    #
+    # @return [KStor::Session] updated session
     def update
       @updated_at = Time.now
       self
     end
 
+    # Create a new session for a user.
+    #
+    # @param user [KStor::Model::User] user owning the session
+    # @param secret_key [KStor::Crypto::SecretKey] user secret key, derived
+    #   from password
+    # @return [KStor::Session] new session with a random SID
     def self.create(user, secret_key)
       sid = SecureRandom.urlsafe_base64(16)
       new(sid, user, secret_key)
     end
   end
 
-  # Collection of user sessions (in memory)
+  # Collection of user sessions (in memory).
   #
-  # FIXME make it thread safe!
+  # Concurrent accesses are synchronized on a mutex.
   class SessionStore
+    # Create new session store.
+    #
+    # @param idle_timeout [Integer] sessions that aren't updated for this
+    #   number of seconds are considered invalid
+    # @param life_timeout [Integer] sessions that are older than this number of
+    #   seconds are considered invalid
+    # @return [KStor::SessionStore] a new session store.
     def initialize(idle_timeout, life_timeout)
       @idle_timeout = idle_timeout
       @life_timeout = life_timeout
@@ -41,12 +64,20 @@ module KStor
       @sessions.extend(Mutex_m)
     end
 
+    # Add a session to the store.
+    #
+    # @param session [KStor::Session] session to store
     def <<(session)
       @sessions.synchronize do
         @sessions[session.id] = session
       end
     end
 
+    # Fetch a session from it's ID.
+    #
+    # @param sid [String] session ID to lookup
+    # @return [KStor::Session, nil] session or nil if session ID was not found
+    #   or session has expired
     def [](sid)
       @sessions.synchronize do
         s = @sessions[sid.to_s]
@@ -61,6 +92,7 @@ module KStor
       end
     end
 
+    # Delete expired sessions.
     def purge
       now = Time.now
       @sessions.synchronize do

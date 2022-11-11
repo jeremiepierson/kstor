@@ -14,18 +14,33 @@ module KStor
 
   # Execute SQL commands in a per-thread SQLite connection.
   class SQLConnection
+    # Create a new SQL connection.
+    #
+    # @param file_path [String] path to SQLite database
+    # @return [KStor::SQLConnection] the new connection
     def initialize(file_path)
       @file_path = file_path
     end
 
+    # Execute SQL statement.
+    #
+    # @param sql [String] SQL statement
+    # @param params [Array] parameters to fill placeholders in the statement
+    # @return [Any] Whatever SQLite returns
     def execute(sql, *params, &)
       database.execute(sql, *params, &)
     end
 
+    # Last generated ID (from an INSERT statement).
+    #
+    # @return [Integer] generated ID from last insert statement.
     def last_insert_row_id
       database.last_insert_row_id
     end
 
+    # Execute given block of code in a database transaction.
+    #
+    # @return [Any] Whatever the block returns
     def transaction(&block)
       result = nil
       database.transaction do |db|

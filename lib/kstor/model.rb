@@ -313,6 +313,13 @@ module KStor
       # Secret should be used at this URL
       attr_accessor :url
 
+      # Create new metadata for a secret.
+      #
+      # Hash param can contains keys for "app", "database", "login", "server"
+      # and "url". Any other key is ignored.
+      #
+      # @param values [Hash[String, String]] metadata
+      # @return [KStor::Model::SecretMeta] secret metadata
       def initialize(values)
         @app = values['app']
         @database = values['database']
@@ -321,25 +328,53 @@ module KStor
         @url = values['url']
       end
 
+      # Convert this metadata to a Hash.
+      #
+      # Empty values will not be included.
+      #
+      # @return [Hash[String, String]] metadata as a Hash
       def to_h
         { 'app' => @app, 'database' => @database, 'login' => @login,
           'server' => @server, 'url' => @url }.compact
       end
 
+      # Prepare metadata to be written to disk or database.
+      #
+      # @return [KStor::Crypto::ArmoredHash] serialized metadata
       def serialize
         Crypto::ArmoredHash.from_hash(to_h)
       end
 
+      # Merge metadata.
+      #
+      # @param other [KStor::Model::SecretMeta] other metadata that will
+      #   override this object's values.
       def merge(other)
         values = to_h.merge(other.to_h)
         values.reject! { |_, v| v.empty? }
         self.class.new(values)
       end
 
+      # Unserialize metadata.
+      #
+      # FIXME: probably useless as ArmoredHash already behaves like a Hash;
+      #        just use .new().
+      #
+      # @param armored_hash [KStor::Crypto::ArmoredHash] serialized metadata
       def self.load(armored_hash)
         new(armored_hash.to_hash)
       end
 
+      # Match against wildcards.
+      #
+      # Metadata will be matched against another metadata object with wildcard
+      # values. This uses roughly the same rules that shell wildcards (e.g.
+      # fnmatch(3) C function).
+      #
+      # @see File.fnmatch?
+      #
+      # @param meta [KStor::Model::SecretMeta] wildcard metadata
+      # @return [Boolean] true if matched
       def match?(meta)
         self_h = to_h
         other_h = meta.to_h
@@ -376,6 +411,9 @@ module KStor
       # @!macro dsl_model_properties_rw
       property :metadata, read_only: true
 
+      # Set metadata (or unset if nil).
+      #
+      # @param armored_hash [KStor::Crypt::ArmoredHash] metadata to load
       def metadata=(armored_hash)
         @data[:metadata] = armored_hash ? SecretMeta.load(armored_hash) : nil
       end

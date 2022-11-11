@@ -10,6 +10,8 @@ module KStor
   class Store
     # Create a new store backed by the given SQLite database file.
     #
+    # FIXME: cache is not thread safe!
+    #
     # @param file_path [String] path to SQLite database file
     # @return [KStor::Store] a data store
     def initialize(file_path)

@@ -14,13 +14,15 @@ module KStor
   module ClientState
     class << self
       DEFAULT_CONFIG = {
-        'socket' => '/home/jpi/code/kstor/testworkdir/kstor.socket'
+        'socket' => '/run/kstor.socket'
       }.freeze
 
+      # Load client config from disk.
       def load_config(progr)
         DEFAULT_CONFIG.merge(load_config_file(progr))
       end
 
+      # Path to session ID file on disk.
       def session_id_file(progr)
         dir = File.join(xdg_runtime, progr)
         FileUtils.mkdir_p(dir)
@@ -30,6 +32,7 @@ module KStor
         file
       end
 
+      # Load session ID from disk.
       def load_session_id(progr)
         sid = nil
         File.open(session_id_file(progr)) { |f| sid = f.read.chomp }
@@ -59,12 +62,11 @@ module KStor
       def config_file(progr)
         dir = File.join(xdg_config, progr)
         FileUtils.mkdir_p(dir)
-        File.join(dir, 'session-id')
+        File.join(dir, 'config.yaml')
       end
 
       def load_config_file(progr)
-        data = File.read(config_file(progr))
-        YAML.parse(data)
+        YAML.load_file(config_file(progr))
       rescue Errno::ENOENT
         {}
       end
@@ -73,12 +75,14 @@ module KStor
 
   # Sub-commands that can be invoked from the command-line.
   module ClientSubCommands
+    # Create a user group.
     def group_create
       request('group_create') do |o|
         o.string('-n', '--name', 'Group name')
       end
     end
 
+    # Create a secret.
     def secret_create
       req = request('secret_create') do |o|
         o.string('-p', '--plaintext', 'Value of the secret')
@@ -92,6 +96,7 @@ module KStor
       reorganize_secret_meta_args(req)
     end
 
+    # Return a list of matching secrets.
     def secret_search
       request('secret_search') do |o|
         o.string('-a', '--app', 'secrets for this application')
@@ -102,12 +107,14 @@ module KStor
       end
     end
 
+    # Decrypt secret value and metadata
     def secret_unlock
       request('secret_unlock') do |o|
         o.string('-s', '--secret-id', 'secret ID to unlock')
       end
     end
 
+    # Update secret metadata
     def secret_update_meta
       req = request('secret_update_meta') do |o|
         o.string('-s', '--secret-id', 'secret ID to modify')
@@ -120,6 +127,7 @@ module KStor
       reorganize_secret_meta_args(req)
     end
 
+    # Update secret value
     def secret_update_value
       request('secret_update_value') do |o|
         o.string('-s', '--secret-id', 'secret ID to modify')
@@ -127,6 +135,7 @@ module KStor
       end
     end
 
+    # Delete secret
     def secret_delete
       request('secret_delete') do |o|
         o.string('-s', '--secret-id', 'secret ID to delete')
@@ -138,12 +147,14 @@ module KStor
   class Client
     include ClientSubCommands
 
+    # Create new command-line client.
     def initialize
       @progr = File.basename($PROGRAM_NAME)
       @config = ClientState.load_config(@progr)
       @user = user_from_argv
     end
 
+    # Read command-line args, send request to server and display results..
     def run
       request_type = ARGV.shift
       resp = send_request(request_type)
