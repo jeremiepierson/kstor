@@ -49,14 +49,14 @@ module KStor
     private
 
     def handle_client_data(data)
-      req = Request.parse(data)
+      req = Message::Request.parse(data)
       resp = @controller.handle_request(req)
       resp.serialize
     rescue JSON::ParserError => e
       err = Error.for_code('MSG/INVALID', e.message)
       Log.info("server: #{err}")
       err.response.serialize
-    rescue RequestMissesAuthData
+    rescue Message::RequestMissesAuthData
       raise Error.for_code('MSG/INVALID', 'Missing authentication data')
     end
   end

@@ -207,8 +207,8 @@ module KStor
       socket.send(req.serialize, 0)
 
       data, = socket.recvfrom(4096)
-      Response.parse(data)
-    rescue UnparsableResponse
+      Message::Response.parse(data)
+    rescue Message::UnparsableResponse
       warn('server speaks funny; look at logs!')
       exit(1)
     end
@@ -270,7 +270,7 @@ module KStor
 
     def request(type, &block)
       args = parse_opts(type) { |o| block.call(o) }
-      KStor::Request.new(type, args, **auth)
+      KStor::Message::Request.new(type, args, **auth)
     end
 
     def parse_opts(request_type)

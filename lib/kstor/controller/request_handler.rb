@@ -78,8 +78,8 @@ module KStor
 
       # Serve a client.
       #
-      # @param req [KStor::Request] client request
-      # @return [KStor::Response] server response
+      # @param req [KStor::Message::Request] client request
+      # @return [KStor::Message::Response] server response
       def handle_request(req)
         user, sid = @auth.authenticate(req)
         controller = controller_from_request_type(req)
