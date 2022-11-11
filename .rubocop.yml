@@ -6,6 +6,8 @@ AllCops:
   NewCops: enable
 Style/AccessorGrouping:
   EnforcedStyle: separated
+Style/DocumentationMethod:
+  Enabled: true
 Layout/LineLength:
   Max: 80
 Metrics/ClassLength:
