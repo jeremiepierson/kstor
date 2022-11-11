@@ -29,7 +29,8 @@ module KStor
       'socket' => '/run/kstor-server.socket',
       'nworkers' => 5,
       'session_idle_timeout' => 15 * 60,
-      'session_life_timeout' => 4 * 60 * 60
+      'session_life_timeout' => 4 * 60 * 60,
+      'log_level' => 'warn'
     }.freeze
 
     class << self

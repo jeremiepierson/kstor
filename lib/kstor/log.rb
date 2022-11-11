@@ -69,6 +69,8 @@ module KStor
 
       # Set reporting level.
       def reporting_level=(lvl)
+        lvl = level_str_to_int(lvl) if lvl.respond_to?(:to_str)
+
         if logger.respond_to?(:min_priority)
           logger.min_priority = lvl
         else
@@ -77,6 +79,17 @@ module KStor
       end
 
       private
+
+      def level_str_to_int(value)
+        case value
+        when /^debug$/i then const_get(:DEBUG)
+        when /^info$/i then const_get(:INFO)
+        when /^warn$/i then const_get(:WARN)
+        when /^error$/i then const_get(:ERROR)
+        else
+          raise "Unknown log level #{value.inspect}"
+        end
+      end
 
       def logger
         @logger ||= create_logger
