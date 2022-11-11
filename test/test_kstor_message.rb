@@ -46,8 +46,8 @@ class TestKStorMessage < Minitest::Test
     lreq = KStor::LoginRequest.new('bob', 'secret', 'ping', {})
     sreq = KStor::SessionRequest.new('sid', 'ping', {})
 
-    assert_equal(lreq.to_h, KStor::Message.parse_request(lreq.serialize).to_h)
-    assert_equal(sreq.to_h, KStor::Message.parse_request(sreq.serialize).to_h)
+    assert_equal(lreq.to_h, KStor::Request.parse(lreq.serialize).to_h)
+    assert_equal(sreq.to_h, KStor::Request.parse(sreq.serialize).to_h)
   end
 
   def test_parse_request_classes
@@ -56,11 +56,11 @@ class TestKStorMessage < Minitest::Test
 
     assert_equal(
       KStor::LoginRequest,
-      KStor::Message.parse_request(lreq.serialize).class
+      KStor::Request.parse(lreq.serialize).class
     )
     assert_equal(
       KStor::SessionRequest,
-      KStor::Message.parse_request(sreq.serialize).class
+      KStor::Request.parse(sreq.serialize).class
     )
   end
 
@@ -68,7 +68,7 @@ class TestKStorMessage < Minitest::Test
     m = KStor::Message.new('ping', { 'payload' => 'Ga Bu Zo Meu' })
 
     assert_raises(KStor::RequestMissesAuthData) do
-      KStor::Message.parse_request(m.serialize)
+      KStor::Request.parse(m.serialize)
     end
   end
 

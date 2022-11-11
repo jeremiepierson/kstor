@@ -49,7 +49,7 @@ module KStor
     private
 
     def handle_client_data(data)
-      req = Message.parse_request(data)
+      req = Request.parse(data)
       resp = @controller.handle_request(req)
       Log.debug("server: response = #{resp.inspect}")
       resp.serialize

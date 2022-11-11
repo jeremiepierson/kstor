@@ -274,7 +274,7 @@ module KStor
       hreq['args'] = parse_opts(type) do |o|
         block.call(o)
       end
-      KStor::Message.parse_request(hreq.merge(auth).to_json)
+      KStor::Request.parse(hreq.merge(auth).to_json)
     end
 
     def parse_opts(request_type)

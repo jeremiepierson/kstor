@@ -44,13 +44,16 @@ module KStor
     def serialize
       to_h.to_json
     end
+  end
 
+  # A client request.
+  class Request < Message
     # Parse a user request, freshly arrived from the network.
     #
     # @param str [String] serialized request
     # @return [LoginRequest,SessionRequest] a request
     # @raise [KStor::RequestMissesAuthData]
-    def self.parse_request(str)
+    def self.parse(str)
       data = JSON.parse(str)
       if data.key?('login') && data.key?('password')
         LoginRequest.new(
@@ -70,7 +73,7 @@ module KStor
   # A user authentication request.
   #
   # Can be of any type.
-  class LoginRequest < Message
+  class LoginRequest < Request
     attr_reader :login
     attr_reader :password
 
@@ -111,7 +114,7 @@ module KStor
   # A user request with a session ID.
   #
   # Can be of any type.
-  class SessionRequest < Message
+  class SessionRequest < Request
     attr_reader :session_id
 
     # Create a new request.
