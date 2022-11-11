@@ -34,7 +34,9 @@ module KStor
 
       def handle_secret_create(user, req)
         meta = Model::SecretMeta.new(**req.args['meta'])
-        secret_groups = req.args['group_ids'].map { |gid| groups[gid.to_i] }
+        secret_groups = req.args['group_ids'].map do |gid|
+          @store.groups[gid.to_i]
+        end
         secret_id = create(
           user, req.args['plaintext'], secret_groups, meta
         )
@@ -73,11 +75,11 @@ module KStor
       end
 
       def users
-        @users ||= @store.users
+        @store.users
       end
 
       def groups
-        @groups ||= @store.groups
+        @store.groups
       end
 
       # in: metadata wildcards
@@ -102,10 +104,10 @@ module KStor
         secret = secret_fetch(secret_id, user.id)
         group_privk = user.keychain[secret.group_id].privk
 
-        value_author = users[secret.value_author_id]
+        value_author = @store.users[secret.value_author_id]
         secret.unlock(value_author.pubk, group_privk)
 
-        meta_author = users[secret.meta_author_id]
+        meta_author = @store.users[secret.meta_author_id]
         secret.unlock_metadata(meta_author.pubk, group_privk)
 
         secret
@@ -135,7 +137,7 @@ module KStor
         meta = secret.metadata.merge(partial_meta)
         group_ids = @store.groups_for_secret(secret.id)
         group_encrypted_metadata = group_ids.to_h do |group_id|
-          group_pubk = groups[group_id].pubk
+          group_pubk = @store.groups[group_id].pubk
           author_privk = user.privk
           encrypted_meta = Crypto.encrypt_secret_metadata(
             group_pubk, author_privk, meta.to_h
@@ -152,7 +154,7 @@ module KStor
         secret = secret_fetch(secret_id, user.id)
         group_ids = @store.groups_for_secret(secret.id)
         group_ciphertexts = group_ids.to_h do |group_id|
-          group_pubk = groups[group_id].pubk
+          group_pubk = @store.groups[group_id].pubk
           author_privk = user.privk
           encrypted_value = Crypto.encrypt_secret_value(
             group_pubk, author_privk, plaintext
@@ -175,18 +177,18 @@ module KStor
 
       def unlock_format(secret)
         args = secret.to_h
-        args['value_author'] = users[secret.value_author_id].to_h
-        args['metadata_author'] = users[secret.meta_author_id].to_h
+        args['value_author'] = @store.users[secret.value_author_id].to_h
+        args['metadata_author'] = @store.users[secret.meta_author_id].to_h
 
         group_ids = @store.groups_for_secret(secret.id)
-        args['groups'] = groups.values_at(*group_ids).map(&:to_h)
+        args['groups'] = @store.groups.values_at(*group_ids).map(&:to_h)
 
         args
       end
 
       def unlock_metadata(user, secret)
         group_privk = user.keychain[secret.group_id].privk
-        author = users[secret.meta_author_id]
+        author = @store.users[secret.meta_author_id]
         secret.unlock_metadata(author.pubk, group_privk)
       end
 

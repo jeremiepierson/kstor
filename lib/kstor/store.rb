@@ -1,23 +1,60 @@
 # frozen_string_literal: true
 
+require 'mutex_m'
+
 require 'kstor/sql_connection'
 require 'kstor/model'
 require 'kstor/log'
 
 module KStor
+  # Simplistic cache for list of users and groups.
+  class StoreCache
+    # Create new cache.
+    def initialize
+      @cache = {}
+      @cache.extend(Mutex_m)
+    end
+
+    class << self
+      # Declare a cached list of values.
+      #
+      # FIXME: define YARD macro to document created methods.
+      #
+      # @param name [Symbol] name of list
+      def property(name)
+        define_method(name) do |&block|
+          @cache.synchronize do
+            return @cache[name] if @cache.key?(name)
+
+            @cache[name] = block.call
+          end
+        end
+
+        define_method("#{name}=".to_sym) do |list|
+          @cache.synchronize { @cache[name] = list }
+        end
+
+        define_method("forget_#{name}") do
+          @cache.synchronize { @cache.delete(name) }
+        end
+      end
+    end
+
+    property :users
+    property :groups
+  end
+
   # Store and fetch objects in an SQLite database.
   # rubocop:disable Metrics/MethodLength
   class Store
     # Create a new store backed by the given SQLite database file.
-    #
-    # FIXME: cache is not thread safe!
     #
     # @param file_path [String] path to SQLite database file
     # @return [KStor::Store] a data store
     def initialize(file_path)
       @file_path = file_path
       @db = SQLConnection.new(file_path)
-      @cache = {}
+      @cache = StoreCache.new
     end
 
     # Execute the given block in a database transaction.
@@ -55,7 +92,7 @@ module KStor
              VALUES (?, ?, ?, ?)
       EOSQL
       Log.debug("store: stored user crypto data for #{user.login}")
-      @cache.delete(:users) if @cache.key?(:users)
+      @cache.forget_users
 
       user_id
     end
@@ -104,7 +141,7 @@ module KStor
         INSERT INTO groups (name, pubk)
              VALUES (?, ?)
       EOSQL
-      @cache.delete(:groups) if @cache.key?(:groups)
+      @cache.forget_groups
       @db.last_insert_row_id
     end
 
@@ -115,23 +152,23 @@ module KStor
     #
     # @return [Array[KStor::Model::Group]] a list of all groups in database
     def groups
-      return @cache[:groups] if @cache.key?(:groups)
-
-      Log.debug('store: loading groups')
-      rows = @db.execute(<<-EOSQL)
-          SELECT id,
-                 name,
-                 pubk
-            FROM groups
-        ORDER BY name
-      EOSQL
-      @cache[:groups] = rows.to_h do |r|
-        a = []
-        a << r['id']
-        a << Model::Group.new(
-          id: r['id'], name: r['name'], pubk: Crypto::PublicKey.new(r['pubk'])
-        )
-        a
+      @cache.groups do
+        Log.debug('store: loading groups')
+        rows = @db.execute(<<-EOSQL)
+            SELECT id,
+                   name,
+                   pubk
+              FROM groups
+          ORDER BY name
+        EOSQL
+        rows.to_h do |r|
+          a = []
+          a << r['id']
+          a << Model::Group.new(
+            id: r['id'], name: r['name'], pubk: Crypto::PublicKey.new(r['pubk'])
+          )
+          a
+        end
       end
     end
 
@@ -142,21 +179,21 @@ module KStor
     #
     # @return [Array[KStor::Model::User]] a list of all users in database
     def users
-      return @cache[:users] if @cache.key?(:users)
+      @cache.users do
+        Log.debug('store: loading users')
+        rows = @db.execute(<<-EOSQL)
+             SELECT u.id,
+                    u.login,
+                    u.name,
+                    u.status,
+                    c.pubk
+               FROM users u
+          LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
+           ORDER BY u.login
+        EOSQL
 
-      Log.debug('store: loading users')
-      rows = @db.execute(<<-EOSQL)
-           SELECT u.id,
-                  u.login,
-                  u.name,
-                  u.status,
-                  c.pubk
-             FROM users u
-        LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
-         ORDER BY u.login
-      EOSQL
-
-      @cache[:users] = users_from_resultset(rows)
+        users_from_resultset(rows)
+      end
     end
 
     # Lookup user by login.
