@@ -258,9 +258,6 @@ module KStor
         self.kdf_params = secret_key.kdf_params
         encrypt(secret_key)
         self.keychain = {}
-        # FIXME: delete keychain items from database!
-        #   they won't be useable (decryption key is lost) but will provoke
-        #   errors.
       end
 
       # Re-encrypt private key and keychain with a new secret key derived from
