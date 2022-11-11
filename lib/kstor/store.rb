@@ -8,16 +8,24 @@ module KStor
   # Store and fetch objects in an SQLite database.
   # rubocop:disable Metrics/MethodLength
   class Store
+    # Create a new store backed by the given SQLite database file.
+    #
+    # @param file_path [String] path to SQLite database file
+    # @return [KStor::Store] a data store
     def initialize(file_path)
       @file_path = file_path
       @db = SQLConnection.new(file_path)
       @cache = {}
     end
 
+    # Execute the given block in a database transaction.
     def transaction(&)
       @db.transaction(&)
     end
 
+    # True if database contains any users.
+    #
+    # @return [Boolean] false if user table is empty
     def users?
       rows = @db.execute('SELECT count(*) AS n FROM users')
       count = Integer(rows.first['n'])
@@ -26,6 +34,12 @@ module KStor
       count.positive?
     end
 
+    # Create a new user in database.
+    #
+    # FIXME: return only the new user's ID
+    #
+    # @param user [KStor::Model::User] the user to create
+    # @return [KStor::Model::User] the same user with a brand-new ID
     def user_create(user)
       @db.execute(<<-EOSQL, user.login, user.name, 'new')
         INSERT INTO users (login, name, status)
@@ -41,10 +55,14 @@ module KStor
              VALUES (?, ?, ?, ?)
       EOSQL
       Log.debug("store: stored user crypto data for #{user.login}")
+      @cache.delete(:users) if @cache.key?(:users)
 
       user
     end
 
+    # Update user name, status and keychain.
+    #
+    # @param user [KStor::Model::User] user to modify.
     def user_update(user)
       @db.execute(<<-EOSQL, user.name, user.status, user.id)
         UPDATE users SET name = ?, status = ?
@@ -60,6 +78,12 @@ module KStor
       EOSQL
     end
 
+    # Add a group private key to a user keychain.
+    #
+    # @param user_id [Integer] ID of an existing user
+    # @param group_id [Integer] ID of an existing group
+    # @param encrypted_privk [KStor::Crypto::ArmoredValue] group private key
+    #   encrypted with user public key
     def keychain_item_create(user_id, group_id, encrypted_privk)
       @db.execute(<<-EOSQL, user_id, group_id, encrypted_privk.to_s)
         INSERT INTO group_members (user_id, group_id, encrypted_privk)
@@ -67,14 +91,29 @@ module KStor
       EOSQL
     end
 
+    # Create a new group.
+    #
+    # Note that it doesn't store the group private key, as it must only exist
+    # in users keychains.
+    #
+    # @param name [String] Name of the new group (must be unique in database)
+    # @param pubk [KStor::Crypto::PublicKey] group public key
+    # @return [Integer] ID of the new group
     def group_create(name, pubk)
       @db.execute(<<-EOSQL, name, pubk.to_s)
         INSERT INTO groups (name, pubk)
              VALUES (?, ?)
       EOSQL
+      @cache.delete(:groups) if @cache.key?(:groups)
       @db.last_insert_row_id
     end
 
+    # List all groups.
+    #
+    # Note that this list is cached in memory, so calling this method multiple
+    # times should be cheap.
+    #
+    # @return [Array[KStor::Model::Group]] a list of all groups in database
     def groups
       return @cache[:groups] if @cache.key?(:groups)
 
@@ -96,6 +135,12 @@ module KStor
       end
     end
 
+    # List all users.
+    #
+    # Note that this list is cached in memory, so calling this method multiple
+    # times should be cheap.
+    #
+    # @return [Array[KStor::Model::User]] a list of all users in database
     def users
       return @cache[:users] if @cache.key?(:users)
 
@@ -114,17 +159,11 @@ module KStor
       @cache[:users] = users_from_resultset(rows)
     end
 
-    # in: login
-    # out:
-    #   - ID
-    #   - name
-    #   - status
-    #   - public key
-    #   - key derivation function parameters
-    #   - encrypted private key
-    #   - keychain: hash of:
-    #     - group ID
-    #     - encrypted group private key
+    # Lookup user by login.
+    #
+    # @param login [String] User login
+    # @return [KStor::Model::User, nil] a user object instance with encrypted
+    #   private data, or nil if login was not found in database.
     def user_by_login(login)
       Log.debug("store: loading user by login #{login.inspect}")
       rows = @db.execute(<<-EOSQL, login)
@@ -142,14 +181,11 @@ module KStor
       user_from_resultset(rows, include_crypto_data: true)
     end
 
-    # in: user ID
-    # out:
-    #   - ID
-    #   - name
-    #   - status
-    #   - public key
-    #   - key derivation function parameters
-    #   - encrypted private key
+    # Lookup user by ID.
+    #
+    # @param user_id [Integer] User ID
+    # @return [KStor::Model::User, nil] a user object instance with encrypted
+    #   private data, or nil if login was not found in database.
     def user_by_id(user_id)
       Log.debug("store: loading user by ID ##{user_id}")
       rows = @db.execute(<<-EOSQL, user_id)
@@ -167,12 +203,11 @@ module KStor
       user_from_resultset(rows, include_crypto_data: true)
     end
 
-    # in: user ID
-    # out: array of:
-    #   - secret ID
-    #   - group ID common between user and secret
-    #   - secret encrypted metadata
-    #   - secret value and metadata author IDs
+    # List of all secrets that should be readable by a user.
+    #
+    # @param user_id [Integer] ID of user that will read the secrets
+    # @return [Array[KStor::Model::Secret]] A list of secrets, that may be
+    #   empty.
     def secrets_for_user(user_id)
       Log.debug("store: loading secrets for user ##{user_id}")
       rows = @db.execute(<<-EOSQL, user_id)
@@ -195,8 +230,12 @@ module KStor
       rows.map { |r| secret_from_row(r) }
     end
 
-    # in: secret ID, user ID
-    # out: encrypted value
+    # Fetch one secret by it's ID.
+    #
+    # @param secret_id [Integer] ID of secret
+    # @param user_id [Integer] ID of secret reader
+    # @return [KStor::Model::Secret, nil] A secret, or nil if secret_id was not
+    #   found or user_id can't read it.
     def secret_fetch(secret_id, user_id)
       Log.debug(
         "store: loading secret value ##{secret_id} for user ##{user_id}"
@@ -221,14 +260,16 @@ module KStor
       secret_from_row(rows.first)
     end
 
-    # in:
-    #   - user ID
-    #   - hash of:
-    #     - group ID
-    #     - array of:
-    #       - ciphertext
-    #       - encrypted metadata
-    # out: secret ID
+    # Create a new secret.
+    #
+    # Encrypted data should be a map of group_id to encrypted data for this
+    # group's key pair as a two-value array, first metadata and then value.
+    #
+    # @param author_id [Integer] ID of user that creates the new secret
+    # @param encrypted_data
+    #   [Array[Hash[Integer, Array[KStor::Crypto::ArmoredValue]]]] see above
+    #   description for shape of value.
+    # @return [Integer] ID of new secret
     def secret_create(author_id, encrypted_data)
       Log.debug("store: creating secret for user #{author_id}")
       @db.execute(<<-EOSQL, author_id, author_id)
@@ -242,6 +283,10 @@ module KStor
       secret_id
     end
 
+    # List of group IDs that can read this secret.
+    #
+    # @param secret_id [Integer] ID of secret
+    # @return [Array[KStor::Model::Group]] list of group ids
     def groups_for_secret(secret_id)
       Log.debug("store: loading group IDs for secret #{secret_id}")
       rows = @db.execute(<<-EOSQL, secret_id)
@@ -252,8 +297,13 @@ module KStor
       rows.map { |r| r['group_id'] }
     end
 
-    # in: secret ID, author ID, array of [group ID, encrypted_metadata]
-    # out: nil
+    # Overwrite secret metadata.
+    #
+    # @param secret_id [Integer] ID of secret to update
+    # @param user_id [Integer] ID of user that changes metadata
+    # @param group_encrypted_metadata
+    #   [Array[Hash[Integer, KStor::Crypt::ArmoredValue]]] map of group IDs to
+    #   encrypted metadata.
     def secret_setmeta(secret_id, user_id, group_encrypted_metadata)
       Log.debug("store: set metadata for secret ##{secret_id}")
       @db.execute(<<-EOSQL, user_id, secret_id)
@@ -269,6 +319,13 @@ module KStor
       end
     end
 
+    # Overwrite secret value.
+    #
+    # @param secret_id [Integer] ID of secret to update
+    # @param user_id [Integer] ID of user that changes the value
+    # @param group_ciphertexts
+    #   [Array[Hash[Integer, KStor::Crypt::ArmoredValue]]] map of group IDs to
+    #   encrypted values.
     def secret_setvalue(secret_id, user_id, group_ciphertexts)
       Log.debug("store: set value for secret ##{secret_id}")
       @db.execute(<<-EOSQL, user_id, secret_id)
@@ -284,6 +341,9 @@ module KStor
       end
     end
 
+    # Delete a secrete from database.
+    #
+    # @param secret_id [Integer] ID of secret
     def secret_delete(secret_id)
       Log.debug("store: delete secret ##{secret_id}")
       # Will cascade to secret_values:
@@ -318,6 +378,15 @@ module KStor
       users.to_h { |uu| [uu.id, uu] }
     end
 
+    # Create a new instance of {KStor::Model::User} from a query result rows.
+    #
+    # This will shift (consume) one row from provided array.
+    #
+    # @param rows [Array[Hash[String, Any]]] Array of query result rows
+    # @param include_crypto_data [Boolean] true if new user object should have
+    #   encrypted private key data and keychain
+    # @return [Array[KStor::Model], nil] A new user object, or nil if there
+    #   were no more rows
     def user_from_resultset(rows, include_crypto_data: true)
       return nil if rows.empty?
 
