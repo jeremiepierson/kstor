@@ -47,7 +47,6 @@ module KStor
     # @param subclass [Class] subclass to add to error registry.
     def self.inherited(subclass)
       super
-      Log.debug("#{subclass} inherits from Error")
       @registry ||= ErrorRegistry.new
       if @registry.key?(subclass.code)
         code = subclass.code

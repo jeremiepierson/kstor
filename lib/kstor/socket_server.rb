@@ -31,6 +31,7 @@ module KStor
       start_workers
       server = server_socket
       Systemd.service_ready
+      Log.info('socket_server: started')
       loop do
         maintain_workers
         @client_queue.enq(server.accept.first)
