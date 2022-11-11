@@ -2,5 +2,5 @@
 
 module KStor
   # Our version number.
-  VERSION = '0.4.4'
+  VERSION = '0.5.0'
 end
