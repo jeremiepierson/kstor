@@ -38,8 +38,6 @@ module KStor
 
     # Create a new user in database.
     #
-    # FIXME: return only the new user's ID
-    #
     # @param user [KStor::Model::User] the user to create
     # @return [KStor::Model::User] the same user with a brand-new ID
     def user_create(user)
@@ -47,10 +45,10 @@ module KStor
         INSERT INTO users (login, name, status)
              VALUES (?, ?, ?)
       EOSQL
-      user.id = @db.last_insert_row_id
+      user_id = @db.last_insert_row_id
       Log.debug("store: stored new user #{user.login}")
       params = [user.kdf_params, user.pubk, user.encrypted_privk].map(&:to_s)
-      return user if params.any?(&:nil?)
+      return user_id if params.any?(&:nil?)
 
       @db.execute(<<-EOSQL, user.id, *params)
         INSERT INTO users_crypto_data (user_id, kdf_params, pubk, encrypted_privk)
@@ -59,7 +57,7 @@ module KStor
       Log.debug("store: stored user crypto data for #{user.login}")
       @cache.delete(:users) if @cache.key?(:users)
 
-      user
+      user_id
     end
 
     # Update user name, status and keychain.

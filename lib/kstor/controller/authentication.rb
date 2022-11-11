@@ -93,7 +93,7 @@ module KStor
         )
         secret_key = user.secret_key(req.password)
         user.unlock(secret_key)
-        @store.user_create(user)
+        user.id = @store.user_create(user)
         Log.info("user #{user.login} created")
 
         session = Session.create(user, secret_key)
