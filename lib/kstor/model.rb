@@ -315,7 +315,7 @@ module KStor
       # Hash param can contains keys for "app", "database", "login", "server"
       # and "url". Any other key is ignored.
       #
-      # @param values [Hash[String, String]] metadata
+      # @param values [Hash, KStor::Crypto::ArmoredHash] metadata
       # @return [KStor::Model::SecretMeta] secret metadata
       def initialize(values)
         @app = values['app']
@@ -350,16 +350,6 @@ module KStor
         values = to_h.merge(other.to_h)
         values.reject! { |_, v| v.empty? }
         self.class.new(values)
-      end
-
-      # Unserialize metadata.
-      #
-      # FIXME: probably useless as ArmoredHash already behaves like a Hash;
-      #        just use .new().
-      #
-      # @param armored_hash [KStor::Crypto::ArmoredHash] serialized metadata
-      def self.load(armored_hash)
-        new(armored_hash.to_hash)
       end
 
       # Match against wildcards.
@@ -412,7 +402,7 @@ module KStor
       #
       # @param armored_hash [KStor::Crypt::ArmoredHash] metadata to load
       def metadata=(armored_hash)
-        @data[:metadata] = armored_hash ? SecretMeta.load(armored_hash) : nil
+        @data[:metadata] = armored_hash ? SecretMeta.new(armored_hash) : nil
       end
 
       # Decrypt secret value.
