@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module KStor
+  # Various controllers that participate in serving client.
   module Controller
     # Common code for all controllers (except RequestHandler).
     #

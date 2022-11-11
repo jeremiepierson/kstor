@@ -9,6 +9,7 @@ require 'kstor/controller/users'
 
 module KStor
   module Controller
+    # Undeclared response type.
     class UnknownResponseType < RuntimeError
     end
 
@@ -44,7 +45,7 @@ module KStor
 
         # True if this controller can handle this request type.
         #
-        # @param [String] request type
+        # @param type [String] request type
         # @return [Boolean] true if handled
         def handles?(type)
           request_types.include?(type)
@@ -53,7 +54,7 @@ module KStor
         # True if this controller can respond to a client with this type of
         # reponse.
         #
-        # @param [String] response type
+        # @param type [String] response type
         # @return [Boolean] true if can be produced.
         def responds?(type)
           response_types.include?(type)

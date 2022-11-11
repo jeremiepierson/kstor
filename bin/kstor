@@ -13,6 +13,7 @@ module KStor
   # Manage KStor client configuration and state on disk.
   module ClientState
     class << self
+      # Default client config.
       DEFAULT_CONFIG = {
         'socket' => '/run/kstor.socket'
       }.freeze
@@ -212,6 +213,7 @@ module KStor
       exit(1)
     end
 
+    # All request types that we can send.
     REQUEST_TYPES = %w[
       group_create
       secret_create

@@ -21,7 +21,7 @@ module KStor
 
       # Declare error message for a subclass.
       #
-      # This will be passed to {String#format} as a format string.
+      # This will be passed to String#format as a format string.
       #
       # @param str [String] error message or format.
       def error_message(str)
@@ -61,7 +61,7 @@ module KStor
 
     # Create new error.
     #
-    # @param args [Array] arguments to {String#format} with the message as a
+    # @param args [Array] arguments to String#format with the message as a
     #   format string.
     # @return [KStor::Error] instance of subclass of Error.
     def initialize(*args)

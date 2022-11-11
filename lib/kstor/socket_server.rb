@@ -9,6 +9,8 @@ require 'timeout'
 module KStor
   # Serve clients on UNIX sockets.
   class SocketServer
+    # Wait this number of seconds for worker threads to terminate before
+    # killing them without mercy.
     GRACEFUL_TIMEOUT = 10
 
     # Create a new server.

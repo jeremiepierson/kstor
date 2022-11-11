@@ -15,6 +15,8 @@ RuboCop::RakeTask.new
 
 require 'yard'
 
-YARD::Rake::YardocTask.new
+YARD::Rake::YardocTask.new do |t|
+  t.files = ['lib/**/*.rb', 'bin/*']
+end
 
 task default: %i[test rubocop]
