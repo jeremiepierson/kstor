@@ -69,9 +69,9 @@ module KStor
 
     # Create a new server response from an error.
     #
-    # @return [KStor::Message::Response] error response
+    # @return [KStor::Message::Error] error response
     def response
-      Message::Error.new(code: self.class.code, message:)
+      Message::Error.new({ 'code' => self.class.code, 'message' => message })
     end
   end
 

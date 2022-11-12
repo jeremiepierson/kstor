@@ -10,25 +10,19 @@ module KStor
   module Controller
     # Handle user and group related requests.
     class User < Base
-      self.request_types = %w[
-        group_create
-      ].freeze
-
-      self.response_types = %w[
-        group_created
-      ].freeze
+      request_type Message::GroupCreate
+      response_type Message::GroupCreated
 
       private
 
       def handle_group_create(user, req)
-        raise Error.for_code('REQ/MISSINGARG', 'name', req.type) unless req.name
-
         group = group_create(user, req.name)
-        Message::GroupCreated.new(
+        args = {
           group_id: group.id,
           group_name: group.name,
           group_pubk: group.pubk
-        )
+        }
+        Message::GroupCreated.new(args)
       end
 
       def group_create(user, name)

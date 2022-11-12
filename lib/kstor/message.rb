@@ -18,9 +18,6 @@ module KStor
   end
 end
 
-require 'kstor/message/request'
-require 'kstor/message/response'
-
 require 'kstor/message/error'
 
 require 'kstor/message/ping'
@@ -44,3 +41,5 @@ require 'kstor/message/secret_value'
 require 'kstor/message/secret_update_meta'
 require 'kstor/message/secret_update_value'
 require 'kstor/message/secret_updated'
+
+KStor::Message.register_all_message_types

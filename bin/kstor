@@ -188,7 +188,7 @@ module KStor
     end
 
     def handle_error!(resp)
-      if resp.args['code'] == 'AUTH/BADSESSION'
+      if resp.code == 'AUTH/BADSESSION'
         FileUtils.rm(ClientState.session_id_file(@progr))
         warn('session expired')
       else
@@ -257,14 +257,14 @@ module KStor
 
     def request_with_meta(type, &block)
       args = parse_opts(type) { |o| block.call(o) }
-      args[:meta] = {
-        'app' => args.delete(:app),
-        'database' => args.delete(:database),
-        'login' => args.delete(:login),
-        'server' => args.delete(:server),
-        'url' => args.delete(:url)
+      args['meta'] = {
+        'app' => args.delete('app'),
+        'database' => args.delete('database'),
+        'login' => args.delete('login'),
+        'server' => args.delete('server'),
+        'url' => args.delete('url')
       }
-      args[:meta].compact!
+      args['meta'].compact!
       KStor::Message::Base.for_type(type, args, **auth)
     end
 
@@ -285,7 +285,7 @@ module KStor
         o.separator('')
         yield o
       end
-      opts.to_hash.compact
+      opts.to_hash.compact.transform_keys(&:to_s)
     end
   end
 end

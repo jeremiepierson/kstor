@@ -34,8 +34,8 @@ module KStor
   end
 
   # Error: missing request argument.
-  class MissingArgument < Error
-    error_code 'REQ/MISSINGARG'
-    error_message 'Missing argument %s for request type %s'
+  class MissingMessageArgument < Error
+    error_code 'REQ/MISSINGARGS'
+    error_message 'Missing argument(s) %s for message type %s'
   end
 end

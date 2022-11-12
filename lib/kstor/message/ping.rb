@@ -1,25 +1,14 @@
 # frozen_string_literal: true
 
-require 'kstor/message/request'
+require 'kstor/message/base'
 
 module KStor
   module Message
     # Ping server.
-    class Ping < Request
-      message_type :ping
+    class Ping < Base
+      message_type :ping, request: true
 
-      # Create a new ping request.
-      #
-      # @param payload [String] arbitrary string
-      # @param opts [Hash[Symbol, String]] common request options
-      def initialize(payload:, **opts)
-        super({ 'payload' => payload }, **opts)
-      end
-
-      # Content of ping request.
-      def payload
-        @args['payload']
-      end
+      arg :payload
     end
   end
 end

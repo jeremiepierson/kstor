@@ -24,7 +24,7 @@ module KStor
       #
       # Request may either contain a login/password, or a session ID.
       #
-      # @param req [KStor::Message::Request] client request
+      # @param req [KStor::Message::Base] client request
       # @return [KStor::Model::User] client user
       # @raise [KStor::InvalidSession] if session ID is invalid
       # @raise [KStor::UserNotAllowed] if user is not allowed
@@ -50,7 +50,7 @@ module KStor
 
       # Load user from database and decrypt private key and keychain.
       def unlock_user(req)
-        if req.session?
+        if req.session_request?
           session_id = req.session_id
           user, secret_key = load_session(session_id)
         else

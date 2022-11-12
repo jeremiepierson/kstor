@@ -49,7 +49,7 @@ module KStor
     private
 
     def handle_client_data(data)
-      req = Message::Request.parse(data)
+      req = Message::Base.parse(data)
       resp = @controller.handle_request(req)
       resp.serialize
     rescue JSON::ParserError => e

@@ -33,7 +33,7 @@ module KStor
         # @return [Array[String]] list of all response types that this handler
         #   can produce
         def response_types
-          ['error'] + @controllers.map(&:response_types).inject([], &:+)
+          [Message::Error] + @controllers.map(&:response_types).inject([], &:+)
         end
 
         # All message types handled and produced by this controller.
@@ -45,7 +45,7 @@ module KStor
 
         # True if this controller can handle this request type.
         #
-        # @param type [String] request type
+        # @param type [Class] request type
         # @return [Boolean] true if handled
         def handles?(type)
           request_types.include?(type)
@@ -78,8 +78,8 @@ module KStor
 
       # Serve a client.
       #
-      # @param req [KStor::Message::Request] client request
-      # @return [KStor::Message::Response] server response
+      # @param req [KStor::Message::Base] client request
+      # @return [KStor::Message::Base] server response
       def handle_request(req)
         user, sid = @auth.authenticate(req)
         controller = controller_from_request_type(req)
@@ -89,7 +89,9 @@ module KStor
       rescue RbNaClError => e
         Log.exception(e)
         Error.for_code('CRYPTO/UNSPECIFIED').response
-      rescue Error => e
+      rescue KStor::MissingMessageArgument => e
+        raise e
+      rescue KStor::Error => e
         Log.info(e.message)
         e.response
       end
@@ -97,7 +99,7 @@ module KStor
       private
 
       def finish_response(resp, sid)
-        unless self.class.responds?(resp.type)
+        unless self.class.responds?(resp.class)
           raise UnknownResponseType, 'Unknown response type ' \
                                      "#{resp.type.inspect}"
         end
@@ -108,7 +110,7 @@ module KStor
 
       def controller_from_request_type(req)
         @controllers.each do |ctrl|
-          return ctrl if ctrl.class.handles?(req.type)
+          return ctrl if ctrl.class.handles?(req)
         end
 
         raise Error.for_code('REQ/UNKNOWN', req.type)

@@ -11,12 +11,24 @@ module KStor
         attr_accessor :request_types
         attr_accessor :response_types
 
+        # Declare that this controller handles this type of request.
+        def request_type(klass)
+          @request_types ||= []
+          @request_types << klass
+        end
+
+        # Declare that this controller produces this type of response.
+        def response_type(klass)
+          @response_types ||= []
+          @response_types << klass
+        end
+
         # True if sub-controller handles these requests.
         #
         # @param type [String] request type
         # @return [Boolean] true if request type may be handled
-        def handles?(type)
-          @request_types.include?(type)
+        def handles?(req)
+          @request_types.include?(req.class)
         end
       end
 
@@ -26,22 +38,22 @@ module KStor
       # @return [KStor::Controller::Base] a new sub-controller
       def initialize(store)
         @store = store
-        @request_handlers = self.class.request_types.to_h do |type|
-          meth = "handle_#{type}".to_sym
-          [type, meth]
+        @request_handlers = self.class.request_types.to_h do |klass|
+          meth = "handle_#{klass.type}".to_sym
+          [klass, meth]
         end
       end
 
       # Handle client request.
       #
       # @param user [KStor::Model::User] user making this request
-      # @param req [KStor::Message::Request] client request
+      # @param req [KStor::Message::Base] client request
       def handle_request(user, req)
-        unless @request_handlers.key?(req.type)
+        unless @request_handlers.key?(req.class)
           raise Error.for_code('REQ/UNKNOWN', req.type)
         end
 
-        __send__(@request_handlers[req.type], user, req)
+        __send__(@request_handlers[req.class], user, req)
       end
     end
   end

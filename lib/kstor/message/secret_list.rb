@@ -1,25 +1,14 @@
 # frozen_string_literal: true
 
-require 'kstor/message/response'
+require 'kstor/message/base'
 
 module KStor
   module Message
     # Response for secret search.
-    class SecretList < Response
-      message_type :secret_list
+    class SecretList < Base
+      message_type :secret_list, response: true
 
-      # Create a new secret-list response.
-      #
-      # @param secrets [Array[Hash]] List of secrets
-      # @param opts [Hash[Symbol, String]] common request options
-      def initialize(secrets:, **opts)
-        super({ 'secrets' => secrets }, **opts)
-      end
-
-      # List of secrets.
-      def secrets
-        @args['secrets']
-      end
+      arg :secrets
     end
   end
 end

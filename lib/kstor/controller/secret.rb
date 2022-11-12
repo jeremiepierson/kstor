@@ -14,22 +14,18 @@ module KStor
   module Controller
     # Handle secret-related requests.
     class Secret < Base
-      self.request_types = %w[
-        secret_create
-        secret_search
-        secret_unlock
-        secret_update_meta
-        secret_update_value
-        secret_delete
-      ].freeze
+      request_type Message::SecretCreate
+      request_type Message::SecretSearch
+      request_type Message::SecretUnlock
+      request_type Message::SecretUpdateMeta
+      request_type Message::SecretUpdateValue
+      request_type Message::SecretDelete
 
-      self.response_types = %w[
-        secret_created
-        secret_list
-        secret_value
-        secret_updated
-        secret_deleted
-      ].freeze
+      response_type Message::SecretCreated
+      response_type Message::SecretList
+      response_type Message::SecretValue
+      response_type Message::SecretUpdated
+      response_type Message::SecretDeleted
 
       private
 
@@ -38,40 +34,41 @@ module KStor
         secret_groups = req.group_ids.map do |gid|
           @store.groups[gid.to_i]
         end
-        secret_id = create(
-          user, req.plaintext, secret_groups, meta
-        )
-        Message::SecretCreated.new(secret_id:)
+        args = {
+          'secret_id' => create(user, req.plaintext, secret_groups, meta)
+        }
+        Message::SecretCreated.new(args)
       end
 
       def handle_secret_search(user, req)
+        Log.debug("secretcontroller#handle_secret_search: #{req.args.inspect}")
         secrets = search(user, Model::SecretMeta.new(**req.meta))
-        response_args = secrets.map { |s| s.to_h.except('group_id') }
-        Message::SecretList.new(secrets: response_args)
+        args = { 'secrets' => secrets.map { |s| s.to_h.except('group_id') } }
+        Message::SecretList.new(args)
       end
 
       def handle_secret_unlock(user, req)
         secret = unlock(user, req.secret_id)
         args = unlock_format(secret)
 
-        Message::SecretValue.new(**args)
+        Message::SecretValue.new(args)
       end
 
       def handle_secret_update_meta(user, req)
         meta = Model::SecretMeta.new(req.meta)
         Log.debug("secret#handle_update_meta: meta=#{meta.to_h.inspect}")
         update_meta(user, req.secret_id, meta)
-        Message::SecretUpdated.new(secret_id: req.secret_id)
+        Message::SecretUpdated.new({ 'secret_id' => req.secret_id })
       end
 
       def handle_secret_update_value(user, req)
         update_value(user, req.secret_id, req.plaintext)
-        Message::SecretUpdated.new(secret_id: req.secret_id)
+        Message::SecretUpdated.new({ 'secret_id' => req.secret_id })
       end
 
       def handle_secret_delete(user, req)
         delete(user, req.secret_id)
-        Message::SecretDeleted.new(secret_id: req.secret_id)
+        Message::SecretDeleted.new({ 'secret_id' => req.secret_id })
       end
 
       def users
@@ -183,7 +180,7 @@ module KStor
         group_ids = @store.groups_for_secret(secret.id)
         args['groups'] = @store.groups.values_at(*group_ids).map(&:to_h)
 
-        args.transform_keys(&:to_sym)
+        args
       end
 
       def unlock_metadata(user, secret)
