@@ -38,6 +38,10 @@ module KStor
       #   if nil, use defaults.
       # @return [SecretKey] secret key and KDF parameters
       def key_derive(passphrase, params = nil)
+        if passphrase.nil?
+          raise Error.for_code('CRYPTO/RBNACL', 'empty password')
+        end
+
         params ||= key_derive_params_generate
         data = RbNaCl::PasswordHash.argon2(
           passphrase, params['salt'],
