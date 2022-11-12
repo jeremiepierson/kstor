@@ -11,7 +11,31 @@ module KStor
     # Handle user and group related requests.
     class User < Base
       request_type Message::GroupCreate
+      # request_type Message::GroupRename
+      # request_type Message::GroupDelete
+      # request_type Message::GroupAddUser
+      # request_type Message::GroupRemoveUser
+      # request_type Message::GroupSearch
+      # request_type Message::GroupView
+      # request_type Message::UserCreate
+      # request_type Message::UserRename
+      # request_type Message::UserArchive
+      # request_type Message::UserSetAdmin
+      # request_type Message::UserUnsetAdmin
+      # request_type Message::UserChangePassword
+      # request_type Message::UserResetPassword
+      # request_type Message::UserSearch
+      # request_type Message::UserView
+
       response_type Message::GroupCreated
+      # response_type Message::GroupUpdated
+      # response_type Message::GroupDeleted
+      # response_type Message::GroupList
+      # response_type Message::GroupInfo
+      # response_type Message::UserCreated
+      # response_type Message::UserUpdated
+      # response_type Message::UserList
+      # response_type Message::UserInfo
 
       private
 

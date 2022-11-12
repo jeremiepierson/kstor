@@ -20,6 +20,8 @@ module KStor
       request_type Message::SecretUpdateMeta
       request_type Message::SecretUpdateValue
       request_type Message::SecretDelete
+      # request_type Message::SecretShare
+      # request_type Message::SecretUnshare
 
       response_type Message::SecretCreated
       response_type Message::SecretList
