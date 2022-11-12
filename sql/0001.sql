@@ -9,7 +9,7 @@ CREATE TABLE users (
 	CONSTRAINT users_pk PRIMARY KEY (id),
 	CONSTRAINT users_login_uk UNIQUE (login),
 	CONSTRAINT users_status_enum_ck CHECK (
-		status IN ('new', 'active', 'admin', 'archived')
+		status IN ('active', 'admin', 'archived')
 	)
 );
 

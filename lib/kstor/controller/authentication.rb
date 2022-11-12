@@ -89,7 +89,7 @@ module KStor
 
         Log.info("no user in database, creating #{req.login.inspect}")
         user = Model::User.new(
-          login: req.login, name: req.login, status: 'new', keychain: {}
+          login: req.login, name: req.login, status: 'admin', keychain: {}
         )
         secret_key = user.secret_key(req.password)
         user.unlock(secret_key)
