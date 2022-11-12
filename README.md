@@ -28,7 +28,7 @@ group key pairs. Group private keys are used to decrypt secrets. Pfew!
 4. systemctl --user start kstor.socket
 5. bundle exec kstor --help
 
-### Available request types
+## Available request types
 
 So far I've implemented:
 * group-create
@@ -39,7 +39,7 @@ So far I've implemented:
 * secret-update-value
 * secret-delete
 
-### Notes
+## Notes
 
 On first access, it will create your user in database (login defaults to your
 login). Passwords are asked interactively.
@@ -48,6 +48,6 @@ It will store session ID in XDG_RUNTIME_DIR/kstor/session-id .
 
 Each request can be authentified either with login/password or with session ID.
 
-### Badges
+## Badges
 
-[![Gem Version](https://badge.fury.io/rb/kstor.svg)](https://badge.fury.io/rb/kstor)
+Gem version on Rubygems.org: [![Gem Version](https://badge.fury.io/rb/kstor.svg)](https://badge.fury.io/rb/kstor)
