@@ -83,6 +83,35 @@ module KStor
       end
     end
 
+    # Rename a group.
+    def group_rename
+      request('group_rename') do |o|
+        o.integer('-g', '--group-id', 'ID of group to rename')
+        o.string('-n', '--name', 'New name of group')
+      end
+    end
+
+    # Delete a group
+    def group_delete
+      request('group_delete') do |o|
+        o.integer('-g', '--group-id', 'ID of group to delete')
+      end
+    end
+
+    # Search groups by name.
+    def group_search
+      request('group_search') do |o|
+        o.string('-n', '--name', 'Name or wildcard to search')
+      end
+    end
+
+    # Get info on a group
+    def group_get
+      request('group_get') do |o|
+        o.integer('-g', '--group-id', 'ID of group to show')
+      end
+    end
+
     # Create a secret.
     def secret_create
       request_with_meta('secret_create') do |o|

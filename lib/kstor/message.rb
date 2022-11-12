@@ -26,6 +26,18 @@ require 'kstor/message/pong'
 require 'kstor/message/group_create'
 require 'kstor/message/group_created'
 
+require 'kstor/message/group_rename'
+require 'kstor/message/group_updated'
+
+require 'kstor/message/group_delete'
+require 'kstor/message/group_deleted'
+
+require 'kstor/message/group_search'
+require 'kstor/message/group_list'
+
+require 'kstor/message/group_get'
+require 'kstor/message/group_info'
+
 require 'kstor/message/secret_create'
 require 'kstor/message/secret_created'
 

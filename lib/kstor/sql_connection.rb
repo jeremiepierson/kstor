@@ -80,6 +80,7 @@ module KStor
       db = SQLite3::Database.new(file_path)
       db.results_as_hash = true
       db.type_translation = SQLite3::Translator.new
+      db.execute('PRAGMA foreign_keys = ON;')
 
       db
     rescue SQLite3::CantOpenException

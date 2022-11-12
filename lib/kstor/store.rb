@@ -50,6 +50,7 @@ module KStor
 
   # Store and fetch objects in an SQLite database.
   # rubocop:disable Metrics/MethodLength
+  # rubocop:disable Metrics/ClassLength
   class Store
     # Create a new store backed by the given SQLite database file.
     #
@@ -149,12 +150,48 @@ module KStor
       @db.last_insert_row_id
     end
 
+    # Rename an existing group.
+    #
+    # @param group_id [Integer] ID of group to be renamed
+    # @param new_name [String] new name of group
+    def group_rename(group_id, new_name)
+      @db.execute(<<-EOSQL, new_name, group_id)
+        UPDATE groups SET name = ?
+         WHERE id = ?
+      EOSQL
+      @cache.forget_groups
+    end
+
+    # List all users in a group.
+    def group_members(group_id)
+      rows = @db.execute(<<-EOSQL, group_id)
+             SELECT u.id,
+                    u.login,
+                    u.name,
+                    u.status,
+                    c.pubk
+               FROM users u
+          LEFT JOIN users_crypto_data c ON (c.user_id = u.id)
+          LEFT JOIN group_members g ON (g.user_id = u.id)
+              WHERE g.group_id = ?
+           ORDER BY u.id
+      EOSQL
+      users_from_resultset(rows)
+    end
+
+    # Delete a group
+    def group_delete(group_id)
+      @db.execute('DELETE FROM groups WHERE id = ?', group_id)
+      @cache.forget_groups
+    end
+
     # List all groups.
     #
     # Note that this list is cached in memory, so calling this method multiple
     # times should be cheap.
     #
-    # @return [Array[KStor::Model::Group]] a list of all groups in database
+    # @return [Hash[Integer, KStor::Model::Group]] a list of all groups in
+    #   database
     def groups
       @cache.groups do
         Log.debug('store: loading groups')
@@ -181,7 +218,8 @@ module KStor
     # Note that this list is cached in memory, so calling this method multiple
     # times should be cheap.
     #
-    # @return [Array[KStor::Model::User]] a list of all users in database
+    # @return [Hash[Integer, KStor::Model::User]] a list of all users in
+    #   database
     def users
       @cache.users do
         Log.debug('store: loading users')
@@ -490,4 +528,5 @@ module KStor
     end
   end
   # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/ClassLength
 end

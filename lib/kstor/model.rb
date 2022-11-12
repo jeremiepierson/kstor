@@ -176,6 +176,11 @@ module KStor
       # @!macro dsl_model_properties_rw
       property :keychain
 
+      # True if user is an administrator.
+      def admin?
+        status == 'admin'
+      end
+
       # Derive secret key from password.
       #
       # If user has no keypair yet, initialize it.
