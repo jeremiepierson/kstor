@@ -70,8 +70,11 @@ module KStor
     # Create a new server response from an error.
     #
     # @return [KStor::Message::Error] error response
-    def response
-      Message::Error.new({ 'code' => self.class.code, 'message' => message })
+    def response(sid)
+      Message::Error.new(
+        { 'code' => self.class.code, 'message' => message },
+        { session_id: sid }
+      )
     end
   end
 

@@ -362,11 +362,13 @@ module KStor
       #
       # @param meta [KStor::Model::SecretMeta] wildcard metadata
       # @return [Boolean] true if matched
+      # rubocop:disable Metrics/CyclomaticComplexity
       def match?(meta)
         self_h = to_h
         other_h = meta.to_h
         other_h.each do |k, wildcard|
           val = self_h[k]
+          return false if val.nil? && !wildcard.nil? && wildcard != '*'
           next if val.nil?
           next if wildcard.nil?
 
@@ -377,6 +379,7 @@ module KStor
         end
         true
       end
+      # rubocop:enable Metrics/CyclomaticComplexity
     end
 
     # A secret, with metadata and a value that are kept encrypted on disk.

@@ -22,7 +22,7 @@ module KStor
           group_name: group.name,
           group_pubk: group.pubk
         }
-        Message::GroupCreated.new(args)
+        [Message::GroupCreated, args]
       end
 
       def group_create(user, name)

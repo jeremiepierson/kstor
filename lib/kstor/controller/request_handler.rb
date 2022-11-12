@@ -83,28 +83,26 @@ module KStor
       def handle_request(req)
         user, sid = @auth.authenticate(req)
         controller = controller_from_request_type(req)
-        resp = @store.transaction { controller.handle_request(user, req) }
+        resp = @store.transaction { controller.handle_request(user, sid, req) }
         user.lock
-        finish_response(resp, sid)
+        finish_response(resp)
       rescue RbNaClError => e
         Log.exception(e)
-        Error.for_code('CRYPTO/UNSPECIFIED').response
+        Error.for_code('CRYPTO/UNSPECIFIED').response(sid)
       rescue KStor::MissingMessageArgument => e
         raise e
       rescue KStor::Error => e
         Log.info(e.message)
-        e.response
+        e.response(sid)
       end
 
       private
 
-      def finish_response(resp, sid)
+      def finish_response(resp)
         unless self.class.responds?(resp.class)
           raise UnknownResponseType, 'Unknown response type ' \
                                      "#{resp.type.inspect}"
         end
-
-        resp.session_id = sid
         resp
       end
 

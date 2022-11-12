@@ -6,33 +6,35 @@ module KStor
     # A user request or response.
     class Base
       attr_reader :args
-      attr_reader :login
-      attr_reader :password
-      attr_accessor :session_id
 
       # Create new message.
       #
       # @param args [Hash] message arguments
+      # @param auth [Hash] authentication data
       # @return [KStor::Message::Base] new message
-      def initialize(args, **opts)
+      def initialize(args, auth = {})
         @args = check_args!(args)
-        if request?
-          if opts.key?(:login) && opts.key?(:password)
-            @login = opts[:login]
-            @password = opts[:password]
-          elsif opts.key?(:session_id)
-            @session_id = opts[:session_id]
-          else
-            raise RequestMissesAuthData
-          end
-        else
-          @session_id = opts[:session_id]
-        end
+        @auth = check_auth!(auth.compact)
       end
 
       # Message type.
       def type
         self.class.type
+      end
+
+      # User login
+      def login
+        @auth[:login]
+      end
+
+      # User password
+      def password
+        @auth[:password]
+      end
+
+      # User session ID
+      def session_id
+        @auth[:session_id]
       end
 
       # True if this message is a request.
@@ -52,12 +54,12 @@ module KStor
 
       # True if this message is a request and has login and password arguments.
       def login_request?
-        request? && !(@login.nil? || @password.nil?)
+        request? && @auth.key?(:login) && @auth.key?(:password)
       end
 
       # True if this message is a request and has a session ID.
       def session_request?
-        request? && !@session_id.nil?
+        request? && @auth.key?(:session_id)
       end
 
       # Convert this message to a Hash
@@ -66,10 +68,10 @@ module KStor
       def to_h
         h = { 'type' => type, 'args' => @args }
         if login_request?
-          h['login'] = @login
-          h['password'] = @password
+          h['login'] = @auth[:login]
+          h['password'] = @auth[:password]
         elsif session_request? || response?
-          h['session_id'] = @session_id
+          h['session_id'] = @auth[:session_id]
         end
 
         h
@@ -119,11 +121,11 @@ module KStor
         end
 
         # Create a new message of the given type
-        def for_type(name, args, **opts)
+        def for_type(name, args, auth)
           klass = @registry[name.to_sym]
           raise "unknown message type #{name.inspect}" unless klass
 
-          klass.new(args, **opts)
+          klass.new(args, auth)
         end
 
         # True if message type "name" is known.
@@ -141,8 +143,8 @@ module KStor
           data = JSON.parse(str)
           type = data.delete('type').to_sym
           args = data.delete('args').transform_keys(&:to_s)
-          opts = data.transform_keys(&:to_sym)
-          for_type(type, args, **opts)
+          auth = data.transform_keys(&:to_sym)
+          for_type(type, args, auth)
         rescue JSON::ParserError
           raise UnparsableResponse
         end
@@ -166,6 +168,14 @@ module KStor
 
       private
 
+      def check_auth!(opts)
+        return opts if response?
+        return opts if opts.key?(:login) && opts.key?(:password)
+        return opts if opts.key?(:session_id)
+
+        raise RequestMissesAuthData
+      end
+
       def check_args!(raw_args)
         args = self.class.arg_names.to_h { |name| [name, raw_args[name]] }
         missing = args.select { |_, v| v.nil? }.keys
@@ -179,7 +189,7 @@ module KStor
       def inspect_login_request
         base_inspect(
           ['@login=%<login>s', '@password="******"'],
-          login: @login.inspect
+          login: @auth[:login].inspect
         )
       end
 
