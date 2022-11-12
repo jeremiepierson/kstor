@@ -82,7 +82,7 @@ module KStor
     # @param user [KStor::Model::User] the user to create
     # @return [KStor::Model::User] the same user with a brand-new ID
     def user_create(user)
-      @db.execute(<<-EOSQL, user.login, user.name, 'new')
+      @db.execute(<<-EOSQL, user.login, user.name, user.status)
         INSERT INTO users (login, name, status)
              VALUES (?, ?, ?)
       EOSQL

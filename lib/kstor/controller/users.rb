@@ -42,9 +42,9 @@ module KStor
       def handle_group_create(user, req)
         group = group_create(user, req.name)
         args = {
-          group_id: group.id,
-          group_name: group.name,
-          group_pubk: group.pubk
+          'group_id' => group.id,
+          'group_name' => group.name,
+          'group_pubk' => group.pubk
         }
         [Message::GroupCreated, args]
       end

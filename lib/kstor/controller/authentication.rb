@@ -43,7 +43,7 @@ module KStor
       # @param user [KStor::Model::User] client user
       # @return [Boolean] true if login is allowed to access application data.
       def allowed?(user)
-        user.status == 'new' || user.status == 'active'
+        user.status == 'admin' || user.status == 'active'
       end
 
       private
@@ -85,7 +85,7 @@ module KStor
       end
 
       def create_first_user(req)
-        raise Error.for_code('AUTH/MISSING') unless req.respond_to?(:login)
+        raise Error.for_code('AUTH/MISSING') unless req.login_request?
 
         Log.info("no user in database, creating #{req.login.inspect}")
         user = Model::User.new(
