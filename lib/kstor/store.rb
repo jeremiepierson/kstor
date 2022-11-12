@@ -88,18 +88,88 @@ module KStor
              VALUES (?, ?, ?)
       EOSQL
       user_id = @db.last_insert_row_id
+      @cache.forget_users
       Log.debug("store: stored new user #{user.login}")
-      params = [user.kdf_params, user.pubk, user.encrypted_privk].map(&:to_s)
+      params = [user.kdf_params, user.pubk, user.encrypted_privk]
       return user_id if params.any?(&:nil?)
 
-      @db.execute(<<-EOSQL, user.id, *params)
+      user_create_crypto(user_id, *params)
+    end
+
+    # Activate new user.
+    def user_activate(user)
+      user_create_crypto(
+        user.id, user.kdf_params, user.pubk, user.encrypted_privk
+      )
+      user.status = 'active'
+      user_set_status(user.id, user.status)
+      activation_tokens_purge
+      @cache.forget_users
+
+      user
+    end
+
+    # Store KDF parameters, public key and encrypted private key for user.
+    def user_create_crypto(user_id, kdf_params, pubk, encrypted_privk)
+      params = [kdf_params, pubk, encrypted_privk]
+      @db.execute(<<-EOSQL, user_id, *params.map(&:to_s))
         INSERT INTO users_crypto_data (user_id, kdf_params, pubk, encrypted_privk)
              VALUES (?, ?, ?, ?)
       EOSQL
-      Log.debug("store: stored user crypto data for #{user.login}")
+      Log.debug("store: stored user crypto data for user ##{user_id}")
       @cache.forget_users
 
       user_id
+    end
+
+    # Update user status.
+    def user_set_status(user_id, status)
+      @db.execute(<<-EOSQL, status, user_id)
+        UPDATE users SET status = ? WHERE id = ?
+      EOSQL
+    end
+
+    # Insert a new activation token.
+    def activation_token_create(token)
+      insert_args = [
+        token.user_id, token.token, token.not_before, token.not_after
+      ]
+      @db.execute(<<-EOSQL, *insert_args)
+        INSERT INTO user_activations (user_id, token, not_before, not_after)
+             VALUES (?, ?, ?, ?)
+      EOSQL
+      Log.debug("store: saved token for user ##{token.user_id}")
+    end
+
+    # Load user activation token.
+    #
+    # @param user_id [Integer] user ID
+    def activation_token_get(user_id)
+      rows = @db.execute(<<-EOSQL, user_id)
+        SELECT user_id, token, not_before, not_after
+          FROM user_activations
+         WHERE user_id = ?
+      EOSQL
+      return nil if rows.empty?
+
+      r = rows.shift
+      Model::ActivationToken.new(
+        user_id: r['user_id'], token: r['token'],
+        not_before: r['not_before'], not_after: r['not_after']
+      )
+    end
+
+    # Delete outdated user action tokens.
+    #
+    # Tokens are invalid if they are expired or if they were redeemed to
+    # activate a user.
+    def activation_tokens_purge
+      now = Time.now.to_i
+      @db.execute(<<-EOSQL, now)
+        DELETE FROM user_activations
+              WHERE user_id IN (SELECT id FROM users WHERE status <> 'new')
+                 OR not_after > ?
+      EOSQL
     end
 
     # Update user name, status and keychain.
@@ -475,13 +545,15 @@ module KStor
         login: row['login'],
         name: row['name'],
         status: row['status'],
-        pubk: Crypto::PublicKey.new(row['pubk'])
+        pubk: row['pubk'] ? Crypto::PublicKey.new(row['pubk']) : nil
       }
       include_crypto_data && user_crypto_data_from_resultset(user_data, row)
       Model::User.new(**user_data)
     end
 
     def user_crypto_data_from_resultset(user_data, row)
+      return unless row['kdf_params'] && row['encrypted_privk']
+
       user_data.merge!(
         kdf_params: Crypto::KDFParams.new(row['kdf_params']),
         encrypted_privk: Crypto::ArmoredValue.new(row['encrypted_privk']),

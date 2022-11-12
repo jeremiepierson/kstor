@@ -38,6 +38,12 @@ require 'kstor/message/group_list'
 require 'kstor/message/group_get'
 require 'kstor/message/group_info'
 
+require 'kstor/message/user_create'
+require 'kstor/message/user_created'
+
+require 'kstor/message/user_activate'
+require 'kstor/message/user_updated'
+
 require 'kstor/message/secret_create'
 require 'kstor/message/secret_created'
 

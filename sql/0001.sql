@@ -8,9 +8,24 @@ CREATE TABLE users (
 
 	CONSTRAINT users_pk PRIMARY KEY (id),
 	CONSTRAINT users_login_uk UNIQUE (login),
+	-- new: just created, needs activation token to become active
+	-- active: can log in
+	-- admin: as active, but more priviledges
+	-- archived: can't log in
 	CONSTRAINT users_status_enum_ck CHECK (
-		status IN ('active', 'admin', 'archived')
+		status IN ('new', 'active', 'admin', 'archived')
 	)
+);
+
+CREATE TABLE user_activations (
+	user_id INTEGER NOT NULL,
+	token TEXT NOT NULL,
+	not_before INTEGER NOT NULL,
+	not_after INTEGER NOT NULL,
+	CONSTRAINT users_activations_pk PRIMARY KEY (user_id),
+	CONSTRAINT users_activations_fk FOREIGN KEY (user_id)
+		REFERENCES users (id)
+		ON DELETE CASCADE
 );
 
 CREATE TABLE users_crypto_data (

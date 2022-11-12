@@ -32,7 +32,11 @@ module KStor
       #   only contains a session ID
       def authenticate(req)
         if @store.users?
-          unlock_user(req)
+          if req.type == :user_activate
+            activate_user(req)
+          else
+            unlock_user(req)
+          end
         else
           create_first_user(req)
         end
@@ -42,11 +46,21 @@ module KStor
       #
       # @param user [KStor::Model::User] client user
       # @return [Boolean] true if login is allowed to access application data.
-      def allowed?(user)
-        user.status == 'admin' || user.status == 'active'
+      def allowed?(user, req)
+        return true if user.status == 'active'
+        return true if user.status == 'admin'
+        return true if user.status == 'new' && req.type == :user_activate
+
+        false
       end
 
       private
+
+      def activate_user(req)
+        raise Error.for_code('AUTH/MISSING') unless req.login_request?
+
+        load_user(req)
+      end
 
       # Load user from database and decrypt private key and keychain.
       def unlock_user(req)
@@ -54,7 +68,7 @@ module KStor
           session_id = req.session_id
           user, secret_key = load_session(session_id)
         else
-          user = load_user(req.login)
+          user = load_user(req)
           secret_key = user.secret_key(req.password)
           session = Session.create(user, secret_key)
           @sessions << session
@@ -73,14 +87,15 @@ module KStor
         [session.user, session.secret_key]
       end
 
-      def load_user(login)
+      def load_user(req)
+        login = req.login
         Log.debug("authenticating user #{login.inspect}")
         user = @store.user_by_login(login)
-        Log.debug("loaded user ##{user.id} #{user.login}")
-        unless user && allowed?(user)
+        unless user && allowed?(user, req)
           raise Error.for_code('AUTH/FORBIDDEN', login)
         end
 
+        Log.debug("loaded user ##{user.id} #{user.login}")
         user
       end
 
