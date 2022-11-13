@@ -201,6 +201,7 @@ module KStor
         INSERT INTO group_members (user_id, group_id, encrypted_privk)
              VALUES (?, ?, ?)
       EOSQL
+      @cache.forget_users
     end
 
     # Create a new group.
@@ -253,15 +254,6 @@ module KStor
     def group_delete(group_id)
       @db.execute('DELETE FROM groups WHERE id = ?', group_id)
       @cache.forget_groups
-    end
-
-    # Add user to group
-    def group_add_user(group_id, user_id, encrypted_group_privk)
-      @db.execute(<<-EOSQL, group_id, user_id, encrypted_group_privk.to_s)
-        INSERT INTO group_members (group_id, user_id, encrypted_privk)
-             VALUES (?, ?, ?)
-      EOSQL
-      @cache.forget_users
     end
 
     # Remove user from group

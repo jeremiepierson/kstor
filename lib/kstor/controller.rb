@@ -38,4 +38,24 @@ module KStor
     error_code 'REQ/MISSINGARGS'
     error_message 'Missing argument(s) %s for message type %s'
   end
+
+  class UnknownGroup < KStor::Error
+    error_code 'STORE/UNKNOWNGROUP'
+    error_message 'Unknown group with ID #%d'
+  end
+
+  class UnknownUser < KStor::Error
+    error_code 'STORE/UNKNOWNUSER'
+    error_message 'Unknown user with ID #%d'
+  end
+
+  class GroupHasMembers < KStor::Error
+    error_code 'STORE/GROUPHASMEMBERS'
+    error_message "Group #%d has members and can't be deleted"
+  end
+
+  class UnknownGroupPrivateKey < KStor::Error
+    error_code 'STORE/UNKNOWNGROUPPRIVK'
+    error_message "Current user doesn't have access to private key of group #%d"
+  end
 end

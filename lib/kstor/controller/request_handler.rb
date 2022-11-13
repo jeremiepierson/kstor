@@ -6,6 +6,7 @@ require 'kstor/error'
 require 'kstor/controller/authentication'
 require 'kstor/controller/secret'
 require 'kstor/controller/users'
+require 'kstor/controller/groups'
 
 module KStor
   module Controller
@@ -61,7 +62,9 @@ module KStor
         end
       end
 
-      self.controllers = [Controller::User, Controller::Secret]
+      self.controllers = [
+        Controller::User, Controller::Group, Controller::Secret
+      ]
 
       # Create new request handler controller from data store and session store.
       #
