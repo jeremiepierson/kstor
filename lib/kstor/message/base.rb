@@ -135,7 +135,7 @@ module KStor
 
         # List of known types.
         def types
-          @registry.types
+          @registry.values
         end
 
         # Parse message.

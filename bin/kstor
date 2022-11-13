@@ -24,19 +24,19 @@ module KStor
       end
 
       # Path to session ID file on disk.
-      def session_id_file(progr)
+      def session_id_file(progr, login)
         dir = File.join(xdg_runtime, progr)
         FileUtils.mkdir_p(dir)
-        file = File.join(dir, 'session-id')
+        file = File.join(dir, "session-id-#{login}")
         FileUtils.touch(file)
         FileUtils.chmod(0o600, file)
         file
       end
 
       # Load session ID from disk.
-      def load_session_id(progr)
+      def load_session_id(progr, login)
         sid = nil
-        File.open(session_id_file(progr)) { |f| sid = f.read.chomp }
+        File.open(session_id_file(progr, login)) { |f| sid = f.read.chomp }
         sid = nil if sid.empty?
 
         sid
@@ -109,6 +109,22 @@ module KStor
     def group_get
       request('group_get') do |o|
         o.integer('-g', '--group-id', 'ID of group to show')
+      end
+    end
+
+    # Add user to group
+    def group_add_user
+      request('group_add_user') do |o|
+        o.integer('-g', '--group-id', 'ID of group to extend')
+        o.integer('-u', '--user-id', 'ID of user to add')
+      end
+    end
+
+    # Remove user from group
+    def group_remove_user
+      request('group_remove_user') do |o|
+        o.integer('-g', '--group-id', 'ID of group to shrink')
+        o.integer('-u', '--user-id', 'ID of user to remove')
       end
     end
 
@@ -210,7 +226,7 @@ module KStor
       puts format_response(resp)
       return unless resp.respond_to?(:session_id)
 
-      File.open(ClientState.session_id_file(@progr), 'w') do |f|
+      File.open(ClientState.session_id_file(@progr, @user), 'w') do |f|
         f.puts(resp.session_id)
       end
     end
@@ -237,7 +253,7 @@ module KStor
 
     def handle_error!(resp)
       if resp.code == 'AUTH/BADSESSION'
-        FileUtils.rm(ClientState.session_id_file(@progr))
+        FileUtils.rm(ClientState.session_id_file(@progr, @user))
         warn('session expired')
       else
         warn(resp.args['message'])
@@ -279,8 +295,12 @@ module KStor
 
     def base_usage
       puts "usage: #{@progr} [--user USER] <req-type> [--help | REQ-ARGS]"
-      request_types = %w[group-create secret-create secret-search secret-unlock]
-      puts "request types: #{request_types.join(', ')}"
+      request_types = KStor::Message::Base.types
+                                          .select(&:request)
+                                          .map(&:type)
+                                          .map(&:to_s)
+                                          .sort
+      puts "request types:\n  #{request_types.join("\n  ")}"
     end
 
     def ask_password
@@ -294,7 +314,7 @@ module KStor
     end
 
     def auth
-      session_id = ClientState.load_session_id(@progr)
+      session_id = ClientState.load_session_id(@progr, @user)
 
       if session_id
         { session_id: }

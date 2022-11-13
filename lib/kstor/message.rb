@@ -27,6 +27,8 @@ require 'kstor/message/group_create'
 require 'kstor/message/group_created'
 
 require 'kstor/message/group_rename'
+require 'kstor/message/group_add_user'
+require 'kstor/message/group_remove_user'
 require 'kstor/message/group_updated'
 
 require 'kstor/message/group_delete'

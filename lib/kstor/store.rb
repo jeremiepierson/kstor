@@ -255,6 +255,25 @@ module KStor
       @cache.forget_groups
     end
 
+    # Add user to group
+    def group_add_user(group_id, user_id, encrypted_group_privk)
+      @db.execute(<<-EOSQL, group_id, user_id, encrypted_group_privk.to_s)
+        INSERT INTO group_members (group_id, user_id, encrypted_privk)
+             VALUES (?, ?, ?)
+      EOSQL
+      @cache.forget_users
+    end
+
+    # Remove user from group
+    def group_remove_user(group_id, user_id)
+      @db.execute(<<-EOSQL, group_id, user_id)
+        DELETE FROM group_members
+              WHERE group_id = ?
+                AND user_id = ?
+      EOSQL
+      @cache.forget_users
+    end
+
     # List all groups.
     #
     # Note that this list is cached in memory, so calling this method multiple

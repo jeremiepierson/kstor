@@ -12,9 +12,19 @@ module KStor
     error_message 'Unknown group with ID #%d'
   end
 
+  class UnknownUser < KStor::Error
+    error_code 'STORE/UNKNOWNUSER'
+    error_message 'Unknown user with ID #%d'
+  end
+
   class GroupHasMembers < KStor::Error
     error_code 'STORE/GROUPHASMEMBERS'
     error_message "Group #%d has members and can't be deleted"
+  end
+
+  class UnknownGroupPrivateKey < KStor::Error
+    error_code 'STORE/UNKNOWNGROUPPRIVK'
+    error_message "Current user doesn't have access to private key of group #%d"
   end
 
   module Controller
@@ -25,8 +35,8 @@ module KStor
       request_type Message::GroupDelete
       request_type Message::GroupSearch
       request_type Message::GroupGet
-      # request_type Message::GroupAddUser
-      # request_type Message::GroupRemoveUser
+      request_type Message::GroupAddUser
+      request_type Message::GroupRemoveUser
       request_type Message::UserCreate
       request_type Message::UserActivate
       # request_type Message::UserRename
@@ -98,6 +108,33 @@ module KStor
         [Message::GroupInfo, args]
       end
 
+      def handle_group_add_user(user, req)
+        raise UserNotAllowed, user.login unless user.admin?
+
+        # Must be member of the target group (we need the group private key)
+        keychain_item = user.keychain[req.group_id]
+        raise UnknownGroupPrivateKey, req.group_id unless keychain_item
+
+        group = @store.groups[req.group_id]
+        group_add_user(keychain_item.privk, req.user_id, group)
+
+        [Message::GroupUpdated, { 'group_id' => req.group_id }]
+      end
+
+      def handle_group_remove_user(user, req)
+        raise UserNotAllowed, user.login unless user.admin?
+
+        group = @store.groups[req.group_id]
+        raise UnknownGroup, req.group_id unless group
+
+        user = @store.users[req.user_id]
+        raise UnknownUser, req.user_id unless user
+
+        @store.group_remove_user(req.group_id, req.user_id)
+
+        [Message::GroupUpdated, { 'group_id' => req.group_id }]
+      end
+
       def handle_user_create(user, req)
         raise UserNotAllowed, user.login unless user.admin?
 
@@ -124,6 +161,23 @@ module KStor
 
       # ------- Below are utility methods not directly called from
       # ------- #handle_request
+
+      def group_add_user(group_privk, target_user_id, group)
+        target_user = @store.users[target_user_id]
+        raise UnknownUser, target_user_id unless target_user
+
+        # Prepare a new keychain item for target user.
+        target_keychain_item = Model::KeychainItem.new(
+          group_id: group.id, group_pubk: group.pubk,
+          privk: group_privk
+        )
+        # Encrypt group private key for target user.
+        target_keychain_item.encrypt(target_user.pubk)
+        # Store the damn thing.
+        @store.group_add_user(
+          group.id, target_user.id, target_keychain_item.encrypted_privk
+        )
+      end
 
       def user_create(login, name, token_lifespan)
         u = Model::User.new(

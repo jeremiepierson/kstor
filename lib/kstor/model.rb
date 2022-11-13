@@ -124,7 +124,7 @@ module KStor
       #   owner
       def encrypt(user_pubk)
         self.encrypted_privk = Crypto.encrypt_group_privk(
-          user_pubk, privk, privk
+          user_pubk, privk
         )
       end
 
