@@ -42,6 +42,15 @@ module KStor
         end
       end
 
+      # Refresh session if password was just changed.
+      def handle_password_changed(req, resp, user)
+        @sessions.delete(resp.session_id)
+        secret_key = user.secret_key(req.new_password)
+        session = Session.create(user, secret_key)
+        @sessions << session
+        resp.session_id = session.id
+      end
+
       # Check if user is allowed to access the application.
       #
       # @param user [KStor::Model::User] client user

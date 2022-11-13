@@ -87,6 +87,7 @@ module KStor
         user, sid = @auth.authenticate(req)
         controller = controller_from_request_type(req)
         resp = @store.transaction { controller.handle_request(user, sid, req) }
+        handle_password_changed(req, resp, user)
         user.lock
         finish_response(resp)
       rescue RbNaClError => e
@@ -100,6 +101,12 @@ module KStor
       end
 
       private
+
+      def handle_password_changed(req, resp, user)
+        return unless resp.type == :user_password_changed
+
+        @auth.handle_password_changed(req, resp, user)
+      end
 
       def finish_response(resp)
         unless self.class.responds?(resp.class)

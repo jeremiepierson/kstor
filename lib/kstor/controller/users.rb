@@ -16,13 +16,14 @@ module KStor
       # request_type Message::UserArchive
       # request_type Message::UserSetAdmin
       # request_type Message::UserUnsetAdmin
-      # request_type Message::UserChangePassword
+      request_type Message::UserChangePassword
       # request_type Message::UserResetPassword
       # request_type Message::UserSearch
       # request_type Message::UserView
 
       response_type Message::UserCreated
       response_type Message::UserUpdated
+      response_type Message::UserPasswordChanged
       # response_type Message::UserList
       # response_type Message::UserInfo
 
@@ -34,6 +35,7 @@ module KStor
         u, token = user_create(
           req.user_login, req.user_name, req.token_lifespan
         )
+        Log.info("controller: created new user #{u.login}")
         args = {
           'user_id' => u.id,
           'activation_token' => token.to_h
@@ -49,7 +51,18 @@ module KStor
 
         user.secret_key(req.password)
         @store.user_activate(user)
+        Log.info("controller: activated user #{user.login}")
         [Message::UserUpdated, { 'user_id' => user.id }]
+      end
+
+      def handle_user_change_password(user, req)
+        raise Error.for_code('AUTH/MISSING') unless req.login_request?
+
+        new_secret_key = user.secret_key(req.new_password)
+        user.encrypt(new_secret_key)
+        @store.user_update(user)
+        Log.info("controller: changed password for user #{user.login}")
+        [Message::UserPasswordChanged, { 'user_id' => user.id }]
       end
 
       # ------- Below are utility methods not directly called from

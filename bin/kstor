@@ -147,6 +147,13 @@ module KStor
       end
     end
 
+    # Change password.
+    def user_change_password
+      request('user_change_password') do |o|
+        o.string('-p', '--new-password', 'New password')
+      end
+    end
+
     # Create a secret.
     def secret_create
       request_with_meta('secret_create') do |o|

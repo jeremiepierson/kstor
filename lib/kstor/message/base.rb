@@ -37,6 +37,13 @@ module KStor
         @auth[:session_id]
       end
 
+      # Change user session ID.
+      #
+      # Should only be used when password was just changed.
+      def session_id=(sid)
+        @auth[:session_id] = sid
+      end
+
       # True if this message is a request.
       def request?
         self.class.request

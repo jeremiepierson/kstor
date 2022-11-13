@@ -172,7 +172,7 @@ module KStor
       EOSQL
     end
 
-    # Update user name, status and keychain.
+    # Update user name, status, crypto data and keychain.
     #
     # @param user [KStor::Model::User] user to modify.
     def user_update(user)
@@ -180,14 +180,18 @@ module KStor
         UPDATE users SET name = ?, status = ?
          WHERE id = ?
       EOSQL
-      params = [user.kdf_params, user.pubk, user.encrypted_privk, user.id]
+      params = [
+        user.kdf_params.to_s, user.pubk.to_s, user.encrypted_privk.to_s, user.id
+      ]
       @db.execute(<<-EOSQL, *params)
         UPDATE users_crypto_data SET
                kdf_params = ?,
-               pubk = ?
-               encrypted_params = ?
+               pubk = ?,
+               encrypted_privk = ?
          WHERE user_id = ?
       EOSQL
+      user_keychain_replace(user)
+      @cache.forget_users
     end
 
     # Add a group private key to a user keychain.
@@ -202,6 +206,22 @@ module KStor
              VALUES (?, ?, ?)
       EOSQL
       @cache.forget_users
+    end
+
+    # Replace every keychain item stored in database by those in the model
+    # object.
+    #
+    # User must be unlocked.
+    def user_keychain_replace(user)
+      raise "user #{user.id} is locked" unless user.unlocked?
+
+      Log.debug("store: replacing keychain of user #{user.login}")
+      @db.execute(<<-EOSQL, user.id)
+        DELETE FROM group_members WHERE user_id = ?
+      EOSQL
+      user.keychain.each_value do |it|
+        keychain_item_create(user.id, it.group_id, it.privk)
+      end
     end
 
     # Create a new group.

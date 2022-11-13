@@ -43,6 +43,9 @@ require 'kstor/message/group_info'
 require 'kstor/message/user_create'
 require 'kstor/message/user_created'
 
+require 'kstor/message/user_change_password'
+require 'kstor/message/user_password_changed'
+
 require 'kstor/message/user_activate'
 require 'kstor/message/user_updated'
 

@@ -92,6 +92,13 @@ module KStor
       end
     end
 
+    # Delete a session.
+    def delete(sid)
+      @sessions.synchronize do
+        @sessions.delete(sid)
+      end
+    end
+
     # Delete expired sessions.
     def purge
       now = Time.now
