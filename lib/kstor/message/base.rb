@@ -56,7 +56,7 @@ module KStor
 
       # True if this message is an error response.
       def error?
-        response? && type == 'error'
+        response? && type == :error
       end
 
       # True if this message is a request and has login and password arguments.
@@ -73,7 +73,7 @@ module KStor
       #
       # @return [Hash] this message as a Hash.
       def to_h
-        h = { 'type' => type, 'args' => @args }
+        h = { 'type' => type.to_s, 'args' => @args }
         if login_request?
           h['login'] = @auth[:login]
           h['password'] = @auth[:password]
