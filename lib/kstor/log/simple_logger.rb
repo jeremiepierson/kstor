@@ -17,7 +17,8 @@ module KStor
       #
       # @return [KStor::Log::SimpleLogger] a simple logger to STDOUT
       def initialize
-        @logger = Logger.new($stdout)
+        progname = File.basename($PROGRAM_NAME)
+        @logger = Logger.new($stdout, progname:)
       end
 
       # Set minimum log level
@@ -55,6 +56,13 @@ module KStor
         @logger.error(msg)
       end
 
+      # Log a fatal error message.
+      #
+      # @param msg [String] message
+      def fatal(msg)
+        @logger.fatal(msg)
+      end
+
       # Log an exception with full backtrace and all.
       #
       # @param exc [Exception] an exception
@@ -72,6 +80,7 @@ module KStor
     INFO = Logger::INFO
     WARN = Logger::WARN
     ERROR = Logger::ERROR
+    FATAL = Logger::FATAL
 
     class << self
       # Create new simple logger to stdout

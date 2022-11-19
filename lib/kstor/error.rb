@@ -90,7 +90,7 @@ module KStor
 
     # List of subclasses.
     def classes
-      @error_classes.values
+      @error_classes
     end
 
     # Append an error class.

@@ -2,6 +2,8 @@
 
 require 'yaml'
 
+require 'kstor/init_system'
+
 module KStor
   # Configuration items stored as YAML.
   class Config
@@ -26,7 +28,7 @@ module KStor
     #   @return [Integer] seconds before a session is closed
     DEFAULTS = {
       'database' => '/var/lib/kstor/kstor.sqlite',
-      'socket' => '/run/kstor-server.socket',
+      'socket' => InitSystem.default_socket_path,
       'nworkers' => 5,
       'session_idle_timeout' => 15 * 60,
       'session_life_timeout' => 4 * 60 * 60,

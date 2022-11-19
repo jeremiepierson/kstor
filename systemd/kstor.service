@@ -3,5 +3,5 @@ Description=KStor server
 
 [Service]
 Type=notify
-ExecStart=kstor-srv /path/to/kstor/server-config.yaml
+ExecStart=kstor-srv --config /path/to/kstor/server-config.yaml
 KillSignal=SIGINT

@@ -46,6 +46,13 @@ module KStor
         logger.error(msg)
       end
 
+      # Log a fatal error message.
+      #
+      # @param msg [String] message
+      def fatal(msg)
+        logger.error(msg)
+      end
+
       # Log a critical error message.
       #
       # @param msg [String] message
@@ -86,6 +93,7 @@ module KStor
         when /^info$/i then const_get(:INFO)
         when /^warn$/i then const_get(:WARN)
         when /^error$/i then const_get(:ERROR)
+        when /^fatal$/i then const_get(:FATAL)
         else
           raise "Unknown log level #{value.inspect}"
         end

@@ -1,9 +1,35 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'slop'
+
 require 'kstor'
 
-config = KStor::Config.load(ARGV.shift)
+script = File.basename($PROGRAM_NAME)
+opts = Slop.parse do |o|
+  o.banner = "usage: #{script} [--config CONFIG-FILE | --help | --info]"
+  o.separator('')
+  o.string('-c', '--config', 'path to configuration file')
+  o.on('--help', 'print this help message') do
+    puts o
+    exit(0)
+  end
+  o.on('--version', 'print version and exit') do
+    puts KStor::VERSION
+    exit(0)
+  end
+  o.on('--info', 'print informations about KStor') do
+    puts '---'
+    puts "Version: #{KStor::VERSION}"
+    print "Message types:\n  - "
+    puts KStor::Message::Base.types.map(&:type).map(&:to_s).sort.join("\n  - ")
+    print "Error types:\n  - "
+    puts KStor::Error.list.map(&:code).map(&:to_s).sort.join("\n  - ")
+    exit(0)
+  end
+end
+
+config = KStor::Config.load(opts[:config])
 
 KStor::Log.reporting_level = config.log_level
 

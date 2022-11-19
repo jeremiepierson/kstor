@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-require 'kstor/log'
-require 'kstor/systemd'
-
 require 'socket'
 require 'timeout'
+require 'fileutils'
+
+require 'kstor/log'
+require 'kstor/init_system'
 
 module KStor
   # Serve clients on UNIX sockets.
@@ -30,7 +31,7 @@ module KStor
     def start
       start_workers
       server = server_socket
-      Systemd.service_ready
+      InitSystem.service_ready
       Log.info('socket_server: started')
       loop do
         maintain_workers
@@ -38,6 +39,7 @@ module KStor
       end
     rescue Interrupt
       stop(server)
+      FileUtils.rm(@path) unless InitSystem.systemd?
       Log.info('socket_server: stopped.')
     end
 
@@ -51,10 +53,16 @@ module KStor
     private
 
     def server_socket
-      s = Systemd.socket
+      s = InitSystem.socket
       return s if s
 
       UNIXServer.new(@path)
+    rescue Errno::EACCES
+      Log.fatal("Can't open socket at #{@path} (permission denied).")
+      exit(1)
+    rescue Errno::EADDRINUSE
+      Log.fatal("Can't open socket at #{@path} (address already in use).")
+      exit(1)
     end
 
     def worker_run
@@ -66,7 +74,7 @@ module KStor
     end
 
     def stop(server)
-      Systemd.service_stopping
+      InitSystem.service_stopping
       Log.debug('socket_server: closing UNIXServer')
       server.close
       Log.debug('socket_server: closing client queue')
