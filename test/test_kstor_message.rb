@@ -10,23 +10,42 @@ class TestKStorMessage < Minitest::Test
     'socket' => 'truc.socket'
   }.freeze
 
+  def make_req_sid(sid, **args)
+    KStor::Message::Ping.new(
+      args.transform_keys(&:to_s),
+      { session_id: sid }
+    )
+  end
+
+  def make_resp(sid, **args)
+    KStor::Message::Pong.new(
+      args.transform_keys(&:to_s),
+      { session_id: sid }
+    )
+  end
+
+  def make_req_login(login, password, **args)
+    KStor::Message::Ping.new(
+      args.transform_keys(&:to_s),
+      { login:, password: }
+    )
+  end
+
   def test_create
-    m = KStor::Message::Ping.new(payload: 'Ga Bu Zo Meu', session_id: 'sid')
+    m = make_req_sid('sid', payload: 'Ga Bu Zo Meu')
     h = {
       'type' => 'ping', 'args' => { 'payload' => 'Ga Bu Zo Meu' },
       'session_id' => 'sid'
     }
 
-    assert_equal('ping', m.type)
+    assert_equal(:ping, m.type)
     assert_equal({ 'payload' => 'Ga Bu Zo Meu' }, m.args)
     assert_equal(h, m.to_h)
     assert_equal(h.to_json, m.serialize)
   end
 
   def test_login_request
-    req = KStor::Message::Ping.new(
-      payload: 'foo', login: 'bob', password: 'secret'
-    )
+    req = make_req_login('bob', 'secret', payload: 'foo')
 
     assert_equal('bob', req.login)
     assert_equal('secret', req.password)
@@ -35,7 +54,7 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_session_request
-    req = KStor::Message::Ping.new(payload: 'foo', session_id: 'sid')
+    req = make_req_sid('sid', payload: 'foo')
 
     assert_equal('sid', req.session_id)
     assert_equal('sid', req.to_h['session_id'])
@@ -43,17 +62,15 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_parse_request_roundtrip
-    lreq = KStor::Message::Ping.new(
-      payload: 'foo', login: 'bob', password: 'secret'
-    )
-    sreq = KStor::Message::Ping.new(payload: 'foo', session_id: 'sid')
+    lreq = make_req_login('bob', 'secret', payload: 'foo')
+    sreq = make_req_sid('sid', payload: 'foo')
 
     assert_equal(lreq.to_h, KStor::Message::Base.parse(lreq.serialize).to_h)
     assert_equal(sreq.to_h, KStor::Message::Base.parse(sreq.serialize).to_h)
   end
 
   def test_parse_request_raises
-    m = KStor::Message::Ping.new(payload: 'Ga Bu Zo Meu', session_id: 'sid')
+    m = make_req_sid('sid', payload: 'Ga Bu Zo Meu')
     h = m.to_h
     h.delete('session_id')
     str = JSON.generate(h)
@@ -64,17 +81,15 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_inspect_password_sid
-    lreq = KStor::Message::Ping.new(
-      payload: 'foo', login: 'bob', password: 'secret'
-    )
-    sreq = KStor::Message::Ping.new(payload: 'foo', session_id: 'secret')
+    lreq = make_req_login('bob', 'secret', payload: 'foo')
+    sreq = make_req_sid('secret', payload: 'foo')
 
     refute_match(/secret/, lreq.inspect)
     refute_match(/secret/, sreq.inspect)
   end
 
   def test_response
-    resp = KStor::Message::Pong.new(payload: 'blah', session_id: 'secret')
+    resp = make_resp('secret', payload: 'blah')
 
     assert_equal('secret', resp.session_id)
     assert_equal(
@@ -87,9 +102,9 @@ class TestKStorMessage < Minitest::Test
   end
 
   def test_response_error
-    resp = KStor::Message::Pong.new(payload: 'blah')
+    resp = make_resp('secret', payload: 'blah')
     err = KStor::Message::Error.new(
-      code: 'BLAHRGH', message: 'Alas, the blorb was blahrghed'
+      { 'code' => 'BLAHRGH', 'message' => 'Alas, the blorb was blahrghed' }
     )
 
     refute_predicate(resp, :error?)
